@@ -1,0 +1,21 @@
+# Documentación:
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Regla global: admin revisa todo
+*                           @AndresMaldonado200338
+
+# CI/CD y automatización
+# Cambios aquí pueden afectar deploy y seguridad
+.github/                    @AndresMaldonado200338
+
+# Configuración de seguridad
+*.env.example               @AndresMaldonado200338
+src/environments/           @AndresMaldonado200338  
+
+# Módulos de autenticación
+src/app/auth/               @AndresMaldonado200338
+
+# Service Worker y PWA
+src/app/core/service-worker/  @AndresMaldonado200338
+ngsw-config.json              @AndresMaldonado200338
+manifest.webmanifest          @AndresMaldonado200338
