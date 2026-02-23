@@ -18,7 +18,7 @@ jobs:
       environment: ${{ steps.set-env.outputs.environment }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Determine environment
         id: set-env
@@ -61,7 +61,7 @@ jobs:
     environment: ${{ needs.build.outputs.environment }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download build artifact
         uses: actions/download-artifact@v4
