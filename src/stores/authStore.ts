@@ -38,7 +38,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (accessToken && user) {
         // Validar que el token sigue siendo válido
         try {
-          const { user: freshUser } = await authApi.me() as { user: User }
+          const { user: freshUser } = (await authApi.me()) as { user: User }
           await setMeta('user', freshUser)
           set({ user: freshUser, accessToken, isAuthenticated: true })
         } catch {
@@ -46,7 +46,10 @@ export const useAuthStore = create<AuthState>((set) => ({
           const refreshToken = await getMeta<string>('refreshToken')
           if (refreshToken) {
             try {
-              const tokens = await authApi.refresh(refreshToken) as { accessToken: string; refreshToken: string }
+              const tokens = (await authApi.refresh(refreshToken)) as {
+                accessToken: string
+                refreshToken: string
+              }
               await setMeta('accessToken', tokens.accessToken)
               await setMeta('refreshToken', tokens.refreshToken)
               set({ user, accessToken: tokens.accessToken, isAuthenticated: true })
@@ -68,8 +71,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (email, password, remember) => {
     set({ isLoading: true, error: null })
     try {
-      const result = await authApi.login({ email, password, remember }) as {
-        user: User; accessToken: string; refreshToken: string
+      const result = (await authApi.login({ email, password, remember })) as {
+        user: User
+        accessToken: string
+        refreshToken: string
       }
       // Guardar en IDB — sólo disponible en cliente
       if (typeof window !== 'undefined') {
@@ -90,8 +95,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   register: async (name, email, password) => {
     set({ isLoading: true, error: null })
     try {
-      const result = await authApi.register({ name, email, password }) as {
-        user: User; accessToken: string; refreshToken: string
+      const result = (await authApi.register({ name, email, password })) as {
+        user: User
+        accessToken: string
+        refreshToken: string
       }
       // Guardar en IDB — sólo disponible en cliente
       if (typeof window !== 'undefined') {
