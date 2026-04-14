@@ -1,0 +1,74 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Midnight Flow Design Tokens ─── */
+:root {
+  /* Light theme */
+  --bg-primary: #fafbfc;
+  --bg-secondary: #ffffff;
+  --bg-elevated: #f3f4f6;
+  --border-subtle: #e5e7eb;
+  --border-active: #4f46e5;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+}
+
+.dark {
+  /* Dark theme (default feel) */
+  --bg-primary: #0f1117;
+  --bg-secondary: #161922;
+  --bg-elevated: #1e2130;
+  --border-subtle: #2a2d3a;
+  --border-active: #4f46e5;
+  --text-primary: #f0f0f3;
+  --text-secondary: #8b8fa3;
+}
+
+@layer base {
+  * {
+    @apply border-border-subtle;
+  }
+  body {
+    @apply bg-bg-primary text-text-primary font-sans antialiased;
+    font-size: 15px;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer components {
+  /* Scrollbar custom */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-subtle) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--border-subtle);
+    border-radius: 2px;
+  }
+
+  /* Glass morphism */
+  .glass {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .dark .glass {
+    background: rgba(0, 0, 0, 0.2);
+  }
+}
