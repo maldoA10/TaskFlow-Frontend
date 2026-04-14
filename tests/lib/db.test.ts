@@ -7,7 +7,6 @@
 // Polyfill ANTES de importar lib/db
 import 'fake-indexeddb/auto'
 
-import { getMeta, setMeta, deleteMeta, dbPut, dbGetById, dbGetAll, dbDelete } from '@/lib/db'
 import type { Board } from '@/types'
 
 // Resetear la instancia de DB entre tests para aislar estado
