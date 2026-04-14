@@ -18,17 +18,26 @@ updates:
       dev-dependencies:
         dependency-type: "development"
 
-      # Agrupa paquetes de Angular en un solo PR
-      angular-packages:
+      # Agrupa paquetes de Next.js en un solo PR
+      nextjs-core:
         patterns:
-          - "@angular/*"
-          - "@angular-devkit/*"
+          - "next"
+          - "react"
+          - "react-dom"
 
       # Agrupa actualizaciones menores y parches seguras
       minor-and-patch:
         update-types:
           - "minor"
           - "patch"
+      
+      # Agrupa librerías comunes de la comunidad (UI, utilidades)
+      ui-and-utils:
+        patterns:
+          - "lucide-react"
+          - "clsx"
+          - "tailwind-merge"
+          - "@radix-ui/*"
 
     # Evita actualizaciones major automáticas
     ignore:
