@@ -74,7 +74,13 @@ export default function RegisterPage() {
             <rect x="3" y="8.5" width="10" height="2.5" rx="1.25" fill="white" fillOpacity="0.7" />
             <rect x="3" y="13" width="6" height="2.5" rx="1.25" fill="white" fillOpacity="0.4" />
             <circle cx="15.5" cy="14" r="3" fill="#10B981" />
-            <path d="M14 14l1 1 2-2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M14 14l1 1 2-2"
+              stroke="white"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </div>
         <span className="text-xl font-bold text-text-primary tracking-tight">TaskFlow</span>

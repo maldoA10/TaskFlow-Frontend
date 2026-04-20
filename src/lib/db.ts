@@ -1,7 +1,14 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb'
 import { DB_NAME, DB_VERSION } from './constants'
 import type {
-  User, Board, BoardMember, Column, Task, Comment, SyncOperation, AppMeta,
+  User,
+  Board,
+  BoardMember,
+  Column,
+  Task,
+  Comment,
+  SyncOperation,
+  AppMeta,
 } from '@/types'
 
 interface TaskFlowDB extends DBSchema {
@@ -131,9 +138,11 @@ export async function dbGetByIndex<T>(
   value: string
 ): Promise<T[]> {
   const db = await getDB()
-  return (db as Parameters<typeof db.getAllFromIndex>[0] extends never ? never : typeof db)
-    // @ts-expect-error dynamic index name
-    .getAllFromIndex(store, index, value) as Promise<T[]>
+  return (
+    (db as Parameters<typeof db.getAllFromIndex>[0] extends never ? never : typeof db)
+      // @ts-expect-error dynamic index name
+      .getAllFromIndex(store, index, value) as Promise<T[]>
+  )
 }
 
 // ─── Sync Queue helpers ───────────────────────────────────────────────────────

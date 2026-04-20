@@ -35,7 +35,12 @@
     @apply bg-bg-primary text-text-primary font-sans antialiased;
     font-size: 15px;
   }
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-semibold tracking-tight;
   }
 }
