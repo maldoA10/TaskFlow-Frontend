@@ -72,3 +72,75 @@ export const authApi = {
       auth: false,
     }),
 }
+
+// ─── Boards endpoints ─────────────────────────────────────────────────────────
+
+export const boardsApi = {
+  list: () => apiFetch<{ boards: import('@/types').Board[] }>('/boards'),
+
+  get: (id: string) => apiFetch<{ board: import('@/types').BoardWithRelations }>(`/boards/${id}`),
+
+  create: (body: { name: string; description?: string; color?: string }) =>
+    apiFetch<{ board: import('@/types').Board }>('/boards', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  update: (id: string, body: Partial<{ name: string; description: string; color: string }>) =>
+    apiFetch<{ board: import('@/types').Board }>(`/boards/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+
+  delete: (id: string) =>
+    apiFetch<void>(`/boards/${id}`, { method: 'DELETE' }),
+}
+
+// ─── Tasks endpoints ──────────────────────────────────────────────────────────
+
+export const tasksApi = {
+  listByBoard: (boardId: string) =>
+    apiFetch<{ tasks: import('@/types').Task[] }>(`/boards/${boardId}/tasks`),
+
+  create: (
+    boardId: string,
+    body: {
+      title: string
+      columnId: string
+      description?: string
+      priority?: string
+      dueDate?: string
+      tags?: string[]
+      assigneeId?: string
+    }
+  ) =>
+    apiFetch<{ task: import('@/types').Task }>(`/boards/${boardId}/tasks`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  update: (
+    id: string,
+    body: Partial<{
+      title: string
+      description: string
+      priority: string
+      dueDate: string | null
+      tags: string[]
+      assigneeId: string | null
+    }>
+  ) =>
+    apiFetch<{ task: import('@/types').Task }>(`/tasks/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+
+  move: (id: string, body: { columnId: string; position: number }) =>
+    apiFetch<{ task: import('@/types').Task }>(`/tasks/${id}/move`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+
+  delete: (id: string) =>
+    apiFetch<void>(`/tasks/${id}`, { method: 'DELETE' }),
+}
