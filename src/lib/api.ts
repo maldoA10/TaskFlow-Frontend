@@ -40,7 +40,14 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
     )
   }
 
-  return res.json()
+  if (res.status === 204 || res.headers.get('content-length') === '0') {
+    return undefined as T
+  }
+
+  const text = await res.text()
+  if (!text) return undefined as T
+
+  return JSON.parse(text) as T
 }
 
 export class ApiError extends Error {
@@ -54,7 +61,7 @@ export class ApiError extends Error {
   }
 }
 
-// ─── Auth endpoints ───────────────────────────────────────────────────────────
+// Auth endpoints
 
 export const authApi = {
   register: (body: { name: string; email: string; password: string }) =>
@@ -73,7 +80,7 @@ export const authApi = {
     }),
 }
 
-// ─── Boards endpoints ─────────────────────────────────────────────────────────
+// Boards endpoints
 
 export const boardsApi = {
   list: () => apiFetch<{ boards: import('@/types').Board[] }>('/boards'),
@@ -92,11 +99,10 @@ export const boardsApi = {
       body: JSON.stringify(body),
     }),
 
-  delete: (id: string) =>
-    apiFetch<void>(`/boards/${id}`, { method: 'DELETE' }),
+  delete: (id: string) => apiFetch<void>(`/boards/${id}`, { method: 'DELETE' }),
 }
 
-// ─── Tasks endpoints ──────────────────────────────────────────────────────────
+// Tasks endpoints
 
 export const tasksApi = {
   listByBoard: (boardId: string) =>
@@ -141,6 +147,5 @@ export const tasksApi = {
       body: JSON.stringify(body),
     }),
 
-  delete: (id: string) =>
-    apiFetch<void>(`/tasks/${id}`, { method: 'DELETE' }),
+  delete: (id: string) => apiFetch<void>(`/tasks/${id}`, { method: 'DELETE' }),
 }
