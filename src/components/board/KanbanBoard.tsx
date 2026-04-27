@@ -30,9 +30,7 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [createColumnId, setCreateColumnId] = useState<string | null>(null)
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
-  )
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   // Track columns locally during drag to enable visual reordering
   const [localColumns, setLocalColumns] = useState<null | (Column & { tasks: Task[] })[]>(null)
@@ -133,7 +131,7 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
 
   // Keep selectedTask in sync with board updates
   const currentSelectedTask = selectedTask
-    ? columns.flatMap((c) => c.tasks).find((t) => t.id === selectedTask.id) ?? selectedTask
+    ? (columns.flatMap((c) => c.tasks).find((t) => t.id === selectedTask.id) ?? selectedTask)
     : null
 
   return (
@@ -156,9 +154,7 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
           ))}
         </div>
 
-        <DragOverlay>
-          {activeTask ? <TaskCardOverlay task={activeTask} /> : null}
-        </DragOverlay>
+        <DragOverlay>{activeTask ? <TaskCardOverlay task={activeTask} /> : null}</DragOverlay>
       </DndContext>
 
       {/* Task detail panel */}

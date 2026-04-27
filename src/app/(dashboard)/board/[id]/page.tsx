@@ -57,7 +57,9 @@ export default function BoardPage() {
         {activeBoard.description && (
           <>
             <span className="text-border-subtle">·</span>
-            <p className="text-sm text-text-secondary truncate max-w-xs">{activeBoard.description}</p>
+            <p className="text-sm text-text-secondary truncate max-w-xs">
+              {activeBoard.description}
+            </p>
           </>
         )}
         <div className="flex-1" />

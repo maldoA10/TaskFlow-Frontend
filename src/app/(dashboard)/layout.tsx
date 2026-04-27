@@ -87,7 +87,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Sidebar header */}
           <div className="flex items-center justify-between h-11 px-3 border-b border-border-subtle flex-shrink-0">
             {sidebarOpen && (
-              <span className="text-xs font-medium text-text-secondary uppercase tracking-wider">Tableros</span>
+              <span className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+                Tableros
+              </span>
             )}
             <button
               onClick={() => setSidebarOpen((v) => !v)}
@@ -96,7 +98,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 !sidebarOpen && 'mx-auto'
               )}
             >
-              {sidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              {sidebarOpen ? (
+                <ChevronLeft className="w-4 h-4" />
+              ) : (
+                <ChevronRight className="w-4 h-4" />
+              )}
             </button>
           </div>
 
@@ -129,26 +135,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         : 'text-text-secondary hover:text-text-primary hover:bg-bg-elevated'
                     )}
                   >
-                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: board.color }} />
+                    <div
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: board.color }}
+                    />
                     <span className="truncate">{board.name}</span>
                   </Link>
                 ))}
               </div>
             )}
 
-            {!sidebarOpen && boards.map((board) => (
-              <Link
-                key={board.id}
-                href={`/board/${board.id}`}
-                className={clsx(
-                  'flex items-center justify-center py-1.5 rounded-lg transition-colors mt-0.5',
-                  activeBoardId === board.id ? 'bg-bg-elevated' : 'hover:bg-bg-elevated'
-                )}
-                title={board.name}
-              >
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: board.color }} />
-              </Link>
-            ))}
+            {!sidebarOpen &&
+              boards.map((board) => (
+                <Link
+                  key={board.id}
+                  href={`/board/${board.id}`}
+                  className={clsx(
+                    'flex items-center justify-center py-1.5 rounded-lg transition-colors mt-0.5',
+                    activeBoardId === board.id ? 'bg-bg-elevated' : 'hover:bg-bg-elevated'
+                  )}
+                  title={board.name}
+                >
+                  <div
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{ backgroundColor: board.color }}
+                  />
+                </Link>
+              ))}
           </nav>
 
           {/* Create board shortcut */}

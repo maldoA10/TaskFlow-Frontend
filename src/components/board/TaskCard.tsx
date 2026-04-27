@@ -27,8 +27,14 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, onClick, isDragging }: TaskCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging: isSortableDragging } =
-    useSortable({ id: task.id, data: { type: 'task', task } })
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging: isSortableDragging,
+  } = useSortable({ id: task.id, data: { type: 'task', task } })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -97,11 +103,7 @@ export function TaskCard({ task, onClick, isDragging }: TaskCardProps) {
             <span
               className={clsx(
                 'inline-flex items-center gap-1 text-[10px]',
-                overdue
-                  ? 'text-accent-rose'
-                  : dueSoon
-                  ? 'text-accent-amber'
-                  : 'text-text-secondary'
+                overdue ? 'text-accent-rose' : dueSoon ? 'text-accent-amber' : 'text-text-secondary'
               )}
             >
               <Calendar className="w-3 h-3" />
@@ -121,9 +123,16 @@ export function TaskCard({ task, onClick, isDragging }: TaskCardProps) {
 export function TaskCardOverlay({ task }: { task: Task }) {
   return (
     <div className="relative bg-bg-secondary border border-accent-indigo/60 rounded-lg p-3 shadow-xl shadow-black/40 scale-[1.02] rotate-1 w-64">
-      <div className={clsx('absolute left-0 top-2 bottom-2 w-0.5 rounded-full', PRIORITY_COLORS[task.priority])} />
+      <div
+        className={clsx(
+          'absolute left-0 top-2 bottom-2 w-0.5 rounded-full',
+          PRIORITY_COLORS[task.priority]
+        )}
+      />
       <div className="pl-2">
-        <p className="text-sm text-text-primary font-medium leading-snug line-clamp-2">{task.title}</p>
+        <p className="text-sm text-text-primary font-medium leading-snug line-clamp-2">
+          {task.title}
+        </p>
       </div>
     </div>
   )

@@ -50,7 +50,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
 
   setActiveBoard: (board) => set({ activeBoard: board }),
 
-  // ─── Boards list ────────────────────────────────────────────────────────────
+  // Boards list
 
   fetchBoards: async () => {
     set({ isLoadingBoards: true, error: null })
@@ -85,7 +85,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     if (get().activeBoard?.id === id) set({ activeBoard: null })
   },
 
-  // ─── Active board ────────────────────────────────────────────────────────────
+  // Active board
 
   fetchBoard: async (id) => {
     set({ isLoadingBoard: true, error: null })
@@ -154,9 +154,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     set((s) => {
       if (!s.activeBoard) return s
       const cols = s.activeBoard.columns.map((col) =>
-        col.id === task.columnId
-          ? { ...col, tasks: sortedByPosition([...col.tasks, task]) }
-          : col
+        col.id === task.columnId ? { ...col, tasks: sortedByPosition([...col.tasks, task]) } : col
       )
       return { activeBoard: { ...s.activeBoard, columns: cols } }
     })

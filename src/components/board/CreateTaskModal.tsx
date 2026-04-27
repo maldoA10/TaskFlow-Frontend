@@ -26,7 +26,12 @@ const PRIORITIES = [
   { value: 'URGENT', label: 'Urgente', color: 'text-accent-rose' },
 ]
 
-export function CreateTaskModal({ columns, defaultColumnId, onClose, onSubmit }: CreateTaskModalProps) {
+export function CreateTaskModal({
+  columns,
+  defaultColumnId,
+  onClose,
+  onSubmit,
+}: CreateTaskModalProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [columnId, setColumnId] = useState(defaultColumnId)
@@ -45,7 +50,10 @@ export function CreateTaskModal({ columns, defaultColumnId, onClose, onSubmit }:
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title.trim()) { setError('El título es requerido'); return }
+    if (!title.trim()) {
+      setError('El título es requerido')
+      return
+    }
     setIsSubmitting(true)
     setError('')
     try {
@@ -75,7 +83,10 @@ export function CreateTaskModal({ columns, defaultColumnId, onClose, onSubmit }:
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border-subtle">
           <h2 className="text-base font-semibold text-text-primary">Nueva Tarea</h2>
-          <button onClick={onClose} className="w-7 h-7 rounded flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-elevated transition-colors">
+          <button
+            onClick={onClose}
+            className="w-7 h-7 rounded flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-elevated transition-colors"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -112,7 +123,9 @@ export function CreateTaskModal({ columns, defaultColumnId, onClose, onSubmit }:
                 className="w-full bg-bg-elevated border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-indigo transition-colors"
               >
                 {columns.map((col) => (
-                  <option key={col.id} value={col.id}>{col.name}</option>
+                  <option key={col.id} value={col.id}>
+                    {col.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -124,7 +137,9 @@ export function CreateTaskModal({ columns, defaultColumnId, onClose, onSubmit }:
                 className="w-full bg-bg-elevated border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-indigo transition-colors"
               >
                 {PRIORITIES.map((p) => (
-                  <option key={p.value} value={p.value}>{p.label}</option>
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
                 ))}
               </select>
             </div>
@@ -132,7 +147,9 @@ export function CreateTaskModal({ columns, defaultColumnId, onClose, onSubmit }:
 
           {/* Due date */}
           <div>
-            <label className="block text-xs text-text-secondary mb-1.5">Fecha límite (opcional)</label>
+            <label className="block text-xs text-text-secondary mb-1.5">
+              Fecha límite (opcional)
+            </label>
             <input
               type="date"
               value={dueDate}
@@ -149,21 +166,39 @@ export function CreateTaskModal({ columns, defaultColumnId, onClose, onSubmit }:
                 type="text"
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    addTag()
+                  }
+                }}
                 placeholder="Añadir etiqueta…"
                 className="flex-1 bg-bg-elevated border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-accent-indigo transition-colors"
               />
-              <button type="button" onClick={addTag} className="px-3 py-2 bg-bg-elevated border border-border-subtle rounded-lg text-text-secondary hover:text-text-primary hover:border-accent-indigo transition-colors">
+              <button
+                type="button"
+                onClick={addTag}
+                className="px-3 py-2 bg-bg-elevated border border-border-subtle rounded-lg text-text-secondary hover:text-text-primary hover:border-accent-indigo transition-colors"
+              >
                 <Plus className="w-4 h-4" />
               </button>
             </div>
             {tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {tags.map((tag) => (
-                  <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono bg-accent-indigo/10 text-accent-indigo/80 border border-accent-indigo/20">
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono bg-accent-indigo/10 text-accent-indigo/80 border border-accent-indigo/20"
+                  >
                     <Tag className="w-2.5 h-2.5" />
                     {tag}
-                    <button type="button" onClick={() => setTags((p) => p.filter((t) => t !== tag))} className="ml-0.5 hover:text-accent-rose transition-colors">×</button>
+                    <button
+                      type="button"
+                      onClick={() => setTags((p) => p.filter((t) => t !== tag))}
+                      className="ml-0.5 hover:text-accent-rose transition-colors"
+                    >
+                      ×
+                    </button>
                   </span>
                 ))}
               </div>
@@ -174,7 +209,11 @@ export function CreateTaskModal({ columns, defaultColumnId, onClose, onSubmit }:
 
           {/* Actions */}
           <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 py-2 rounded-lg border border-border-subtle text-sm text-text-secondary hover:text-text-primary hover:border-accent-indigo/40 transition-colors">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2 rounded-lg border border-border-subtle text-sm text-text-secondary hover:text-text-primary hover:border-accent-indigo/40 transition-colors"
+            >
               Cancelar
             </button>
             <button

@@ -29,7 +29,10 @@ export function CreateBoardModal({ onClose, onSubmit }: CreateBoardModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim()) { setError('El nombre es requerido'); return }
+    if (!name.trim()) {
+      setError('El nombre es requerido')
+      return
+    }
     setIsSubmitting(true)
     setError('')
     try {
@@ -50,7 +53,10 @@ export function CreateBoardModal({ onClose, onSubmit }: CreateBoardModalProps) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border-subtle">
           <h2 className="text-base font-semibold text-text-primary">Nuevo Tablero</h2>
-          <button onClick={onClose} className="w-7 h-7 rounded flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-elevated transition-colors">
+          <button
+            onClick={onClose}
+            className="w-7 h-7 rounded flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-elevated transition-colors"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -82,7 +88,9 @@ export function CreateBoardModal({ onClose, onSubmit }: CreateBoardModalProps) {
 
           {/* Description */}
           <div>
-            <label className="block text-xs text-text-secondary mb-1.5">Descripción (opcional)</label>
+            <label className="block text-xs text-text-secondary mb-1.5">
+              Descripción (opcional)
+            </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -103,7 +111,9 @@ export function CreateBoardModal({ onClose, onSubmit }: CreateBoardModalProps) {
                   onClick={() => setColor(c)}
                   className={clsx(
                     'w-8 h-8 rounded-full transition-all',
-                    color === c ? 'ring-2 ring-offset-2 ring-offset-bg-secondary scale-110' : 'hover:scale-105'
+                    color === c
+                      ? 'ring-2 ring-offset-2 ring-offset-bg-secondary scale-110'
+                      : 'hover:scale-105'
                   )}
                   style={{ backgroundColor: c, ['--tw-ring-color' as string]: c }}
                   title={c}
@@ -116,7 +126,11 @@ export function CreateBoardModal({ onClose, onSubmit }: CreateBoardModalProps) {
 
           {/* Actions */}
           <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 py-2 rounded-lg border border-border-subtle text-sm text-text-secondary hover:text-text-primary hover:border-accent-indigo/40 transition-colors">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2 rounded-lg border border-border-subtle text-sm text-text-secondary hover:text-text-primary hover:border-accent-indigo/40 transition-colors"
+            >
               Cancelar
             </button>
             <button

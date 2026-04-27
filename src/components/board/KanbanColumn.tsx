@@ -64,7 +64,7 @@ export function KanbanColumn({ column, onTaskClick, onAddTask }: KanbanColumnPro
         ref={setNodeRef}
         className={clsx(
           'flex-1 rounded-b-xl border border-t-0 p-2 min-h-[120px] flex flex-col gap-2 transition-colors duration-150',
-          accent.split(' ').find(c => c.startsWith('border-')) ?? 'border-border-subtle',
+          accent.split(' ').find((c) => c.startsWith('border-')) ?? 'border-border-subtle',
           isOver ? 'bg-bg-elevated/80' : 'bg-bg-secondary/30'
         )}
       >

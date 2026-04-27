@@ -1,4 +1,4 @@
-// ─── Enums ───────────────────────────────────────────────────────────────────
+// Enums
 
 export type Role = 'OWNER' | 'MEMBER'
 export type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
@@ -7,7 +7,7 @@ export type SyncOperationType = 'CREATE' | 'UPDATE' | 'DELETE' | 'MOVE'
 export type SyncEntityType = 'task' | 'column' | 'board' | 'comment'
 export type SyncStatus = 'pending' | 'in-progress' | 'failed' | 'completed'
 
-// ─── Domain Types ─────────────────────────────────────────────────────────────
+// Domain Types
 
 export interface User {
   id: string
@@ -84,7 +84,7 @@ export interface Invitation {
   inviter?: User
 }
 
-// ─── Sync Queue ───────────────────────────────────────────────────────────────
+// Sync Queue
 
 export interface SyncOperation {
   id?: number // autoIncrement
@@ -98,7 +98,7 @@ export interface SyncOperation {
   version: number
 }
 
-// ─── API Response Types ───────────────────────────────────────────────────────
+// API Response Types
 
 export interface AuthTokens {
   accessToken: string
@@ -126,14 +126,14 @@ export interface SyncResult {
   serverData?: unknown
 }
 
-// ─── Board with relations ─────────────────────────────────────────────────────
+// Board with relations
 
 export interface BoardWithRelations extends Board {
   columns: (Column & { tasks: Task[] })[]
   members: (BoardMember & { user: User })[]
 }
 
-// ─── App Meta (IndexedDB appMeta store) ───────────────────────────────────────
+// App Meta (IndexedDB appMeta store)
 
 export interface AppMeta {
   key: string

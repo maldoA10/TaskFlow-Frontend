@@ -8,7 +8,15 @@ import { CreateBoardModal } from '@/components/board/CreateBoardModal'
 import type { Board } from '@/types'
 import { clsx } from 'clsx'
 
-function BoardCard({ board, onOpen, onDelete }: { board: Board; onOpen: () => void; onDelete: () => void }) {
+function BoardCard({
+  board,
+  onOpen,
+  onDelete,
+}: {
+  board: Board
+  onOpen: () => void
+  onDelete: () => void
+}) {
   const [showDelete, setShowDelete] = useState(false)
 
   return (
@@ -30,7 +38,10 @@ function BoardCard({ board, onOpen, onDelete }: { board: Board; onOpen: () => vo
 
           {/* Delete button */}
           <button
-            onClick={(e) => { e.stopPropagation(); setShowDelete(true) }}
+            onClick={(e) => {
+              e.stopPropagation()
+              setShowDelete(true)
+            }}
             className="w-7 h-7 rounded flex items-center justify-center text-text-secondary opacity-0 group-hover:opacity-100 hover:text-accent-rose hover:bg-accent-rose/10 transition-all"
             title="Eliminar tablero"
           >
@@ -45,9 +56,15 @@ function BoardCard({ board, onOpen, onDelete }: { board: Board; onOpen: () => vo
 
         <div className="mt-3 pt-3 border-t border-border-subtle flex items-center justify-between">
           <span className="text-xs text-text-secondary/60">
-            {new Date(board.createdAt).toLocaleDateString('es', { month: 'short', year: 'numeric' })}
+            {new Date(board.createdAt).toLocaleDateString('es', {
+              month: 'short',
+              year: 'numeric',
+            })}
           </span>
-          <div className="w-2 h-2 rounded-full opacity-60" style={{ backgroundColor: board.color }} />
+          <div
+            className="w-2 h-2 rounded-full opacity-60"
+            style={{ backgroundColor: board.color }}
+          />
         </div>
       </div>
 
@@ -57,8 +74,12 @@ function BoardCard({ board, onOpen, onDelete }: { board: Board; onOpen: () => vo
           className="absolute inset-0 bg-bg-secondary/95 backdrop-blur-sm flex flex-col items-center justify-center gap-3 p-4"
           onClick={(e) => e.stopPropagation()}
         >
-          <p className="text-sm text-text-primary font-medium text-center">¿Eliminar &ldquo;{board.name}&rdquo;?</p>
-          <p className="text-xs text-text-secondary text-center">Esta acción no se puede deshacer</p>
+          <p className="text-sm text-text-primary font-medium text-center">
+            ¿Eliminar &ldquo;{board.name}&rdquo;?
+          </p>
+          <p className="text-xs text-text-secondary text-center">
+            Esta acción no se puede deshacer
+          </p>
           <div className="flex gap-2 w-full">
             <button
               onClick={() => setShowDelete(false)}
@@ -95,7 +116,9 @@ export default function BoardsPage() {
         <div>
           <h1 className="text-xl font-semibold text-text-primary tracking-tight">Mis Tableros</h1>
           <p className="text-sm text-text-secondary mt-0.5">
-            {boards.length === 0 ? 'Sin tableros aún' : `${boards.length} tablero${boards.length === 1 ? '' : 's'}`}
+            {boards.length === 0
+              ? 'Sin tableros aún'
+              : `${boards.length} tablero${boards.length === 1 ? '' : 's'}`}
           </p>
         </div>
         <button
@@ -122,7 +145,9 @@ export default function BoardsPage() {
           </div>
           <div className="text-center">
             <p className="text-text-primary font-medium mb-1">Crea tu primer tablero</p>
-            <p className="text-sm text-text-secondary">Organiza tus proyectos y tareas de forma visual</p>
+            <p className="text-sm text-text-secondary">
+              Organiza tus proyectos y tareas de forma visual
+            </p>
           </div>
           <button
             onClick={() => setShowCreate(true)}
@@ -136,10 +161,9 @@ export default function BoardsPage() {
 
       {/* Grid */}
       {boards.length > 0 && (
-        <div className={clsx(
-          'grid gap-4',
-          'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
-        )}>
+        <div
+          className={clsx('grid gap-4', 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4')}
+        >
           {boards.map((board) => (
             <BoardCard
               key={board.id}
