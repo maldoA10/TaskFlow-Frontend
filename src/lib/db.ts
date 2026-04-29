@@ -90,7 +90,7 @@ export function getDB(): Promise<IDBPDatabase<TaskFlowDB>> {
   return dbPromise
 }
 
-// ─── App Meta helpers ─────────────────────────────────────────────────────────
+// App Meta helpers
 
 export async function getMeta<T>(key: string): Promise<T | undefined> {
   const db = await getDB()
@@ -108,7 +108,7 @@ export async function deleteMeta(key: string): Promise<void> {
   await db.delete('appMeta', key)
 }
 
-// ─── Generic CRUD helpers ─────────────────────────────────────────────────────
+// Generic CRUD helpers
 
 type StoreName = 'users' | 'boards' | 'boardMembers' | 'columns' | 'tasks' | 'comments'
 
@@ -145,7 +145,7 @@ export async function dbGetByIndex<T>(
   )
 }
 
-// ─── Sync Queue helpers ───────────────────────────────────────────────────────
+// Sync Queue helpers
 
 export async function enqueueSyncOp(op: Omit<SyncOperation, 'id'>): Promise<void> {
   const db = await getDB()
