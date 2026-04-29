@@ -89,7 +89,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="absolute bottom-6 text-xs text-text-secondary opacity-50">
-        TaskFlow · Electiva III · 2025
+        TaskFlow - Electiva III - 2026
       </footer>
     </main>
   )

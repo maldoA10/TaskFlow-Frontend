@@ -15,6 +15,23 @@ jest.mock('@/lib/db', () => ({
 const mockFetch = jest.fn()
 global.fetch = mockFetch
 
+// Helper para crear una respuesta ok con headers simulados
+const okResponse = (payload: unknown) => ({
+  ok: true,
+  status: 200,
+  headers: { get: jest.fn().mockReturnValue(null) },
+  json: async () => payload,
+  text: async () => JSON.stringify(payload),
+})
+
+// Helper para crear una respuesta de error
+const errorResponse = (status: number, error: { code: string; message: string }) => ({
+  ok: false,
+  status,
+  headers: { get: jest.fn().mockReturnValue(null) },
+  json: async () => ({ error }),
+})
+
 beforeEach(() => {
   mockFetch.mockReset()
 })
@@ -45,31 +62,24 @@ describe('ApiError', () => {
 describe('apiFetch', () => {
   it('resuelve con los datos JSON cuando la respuesta es ok', async () => {
     const payload = { id: '1', name: 'Test' }
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => payload,
-    })
+    mockFetch.mockResolvedValueOnce(okResponse(payload))
 
     const result = await apiFetch('/test', { auth: false })
     expect(result).toEqual(payload)
   })
 
   it('lanza ApiError cuando la respuesta no es ok', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 401,
-      json: async () => ({ error: { code: 'UNAUTHORIZED', message: 'No autorizado' } }),
-    })
+    mockFetch.mockResolvedValueOnce(
+      errorResponse(401, { code: 'UNAUTHORIZED', message: 'No autorizado' })
+    )
 
     await expect(apiFetch('/protected', { auth: false })).rejects.toBeInstanceOf(ApiError)
   })
 
   it('el ApiError contiene el código y status del servidor', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 403,
-      json: async () => ({ error: { code: 'FORBIDDEN', message: 'Acceso denegado' } }),
-    })
+    mockFetch.mockResolvedValueOnce(
+      errorResponse(403, { code: 'FORBIDDEN', message: 'Acceso denegado' })
+    )
 
     try {
       await apiFetch('/admin', { auth: false })
@@ -84,6 +94,7 @@ describe('apiFetch', () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 500,
+      headers: { get: jest.fn().mockReturnValue(null) },
       json: async () => {
         throw new Error('invalid json')
       },
@@ -96,7 +107,7 @@ describe('apiFetch', () => {
     const { getMeta } = await import('@/lib/db')
     ;(getMeta as jest.Mock).mockResolvedValueOnce('my-token')
 
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) })
+    mockFetch.mockResolvedValueOnce(okResponse({}))
 
     await apiFetch('/secure')
 
@@ -105,7 +116,7 @@ describe('apiFetch', () => {
   })
 
   it('NO incluye Authorization cuando auth=false', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) })
+    mockFetch.mockResolvedValueOnce(okResponse({}))
 
     await apiFetch('/public', { auth: false })
 
@@ -118,10 +129,9 @@ describe('apiFetch', () => {
 
 describe('authApi', () => {
   it('authApi.login llama a /auth/login con POST', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ user: {}, accessToken: 'tok', refreshToken: 'ref' }),
-    })
+    mockFetch.mockResolvedValueOnce(
+      okResponse({ user: {}, accessToken: 'tok', refreshToken: 'ref' })
+    )
 
     await authApi.login({ email: 'a@b.com', password: '123456', remember: false })
 
@@ -131,10 +141,9 @@ describe('authApi', () => {
   })
 
   it('authApi.register llama a /auth/register con POST', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ user: {}, accessToken: 'tok', refreshToken: 'ref' }),
-    })
+    mockFetch.mockResolvedValueOnce(
+      okResponse({ user: {}, accessToken: 'tok', refreshToken: 'ref' })
+    )
 
     await authApi.register({ name: 'Juan', email: 'j@b.com', password: 'pass' })
 
@@ -144,10 +153,9 @@ describe('authApi', () => {
   })
 
   it('authApi.refresh llama a /auth/refresh con POST', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ accessToken: 'new', refreshToken: 'new-ref' }),
-    })
+    mockFetch.mockResolvedValueOnce(
+      okResponse({ accessToken: 'new', refreshToken: 'new-ref' })
+    )
 
     await authApi.refresh('old-refresh-token')
 
