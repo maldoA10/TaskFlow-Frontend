@@ -1,13 +1,22 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/stores/authStore'
 import { useBoardStore } from '@/stores/boardStore'
 import { OnlineStatusDot } from '@/components/layout/OfflineIndicator'
+import { SyncIndicator } from '@/components/layout/SyncIndicator'
+import { ConflictModal } from '@/components/board/ConflictModal'
 import { Loader2, LayoutGrid, Plus, ChevronLeft, ChevronRight, LogOut } from 'lucide-react'
 import { clsx } from 'clsx'
+import {
+  processSyncQueue,
+  pullRemoteChanges,
+  onConflict,
+  clearStaleOps,
+  type ConflictItem,
+} from '@/lib/sync'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -15,13 +24,62 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { isAuthenticated, isLoading, loadFromStorage, user, logout } = useAuthStore()
   const { boards, fetchBoards } = useBoardStore()
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [conflicts, setConflicts] = useState<ConflictItem[]>([])
+
+  const applyPullChanges = useCallback(async () => {
+    const changes = await pullRemoteChanges()
+    if (!changes) return
+    const { activeBoard } = useBoardStore.getState()
+    if (!activeBoard) return
+    const relevant =
+      changes.tasks.some((t) => t.boardId === activeBoard.id) ||
+      changes.columns.some((c) => c.boardId === activeBoard.id) ||
+      changes.boards.some((b) => b.id === activeBoard.id)
+    if (relevant) {
+      await useBoardStore.getState().refreshFromIDB(activeBoard.id)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const runSync = useCallback(async () => {
+    await processSyncQueue()
+    await applyPullChanges()
+  }, [applyPullChanges])
 
   useEffect(() => {
     loadFromStorage().then(() => {
       const { isAuthenticated: auth } = useAuthStore.getState()
       if (!auth) router.push('/login')
-      else fetchBoards()
+      else {
+        clearStaleOps() // limpiar ops viejas de sesiones anteriores
+        fetchBoards()
+        runSync()
+      }
     })
+
+    // Sincronizar al recuperar conexión
+    const handleOnline = () => runSync()
+    window.addEventListener('online', handleOnline)
+
+    // Pull periódico cada 30s
+    const pullInterval = setInterval(() => {
+      if (navigator.onLine) applyPullChanges()
+    }, 30_000)
+
+    // Pull al enfocar ventana
+    const handleFocus = () => {
+      if (navigator.onLine) applyPullChanges()
+    }
+    window.addEventListener('focus', handleFocus)
+
+    // Escuchar conflictos
+    const unsubConflict = onConflict((items) => setConflicts(items))
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('focus', handleFocus)
+      clearInterval(pullInterval)
+      unsubConflict()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -55,6 +113,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <div className="flex-1" />
 
+        <SyncIndicator />
         <OnlineStatusDot />
 
         {/* User menu */}
@@ -190,6 +249,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Main content */}
         <main className="flex-1 overflow-auto">{children}</main>
       </div>
+
+      {/* Conflict resolution modal */}
+      {conflicts.length > 0 && (
+        <ConflictModal conflicts={conflicts} onClose={() => setConflicts([])} />
+      )}
     </div>
   )
 }

@@ -175,3 +175,17 @@ export async function clearCompletedSyncOps(): Promise<void> {
   await Promise.all(completed.map((op) => tx.store.delete(op.id!)))
   await tx.done
 }
+
+export async function clearStaleOps(): Promise<void> {
+  // Elimina ops completed y failed con más de 5 minutos (evita acumulación entre sesiones)
+  const db = await getDB()
+  const cutoff = Date.now() - 5 * 60 * 1000
+  const all = await db.getAll('syncQueue')
+  const stale = all.filter(
+    (op) => (op.status === 'completed' || op.status === 'failed') && op.timestamp < cutoff
+  )
+  if (stale.length === 0) return
+  const tx = db.transaction('syncQueue', 'readwrite')
+  await Promise.all(stale.map((op) => tx.store.delete(op.id!)))
+  await tx.done
+}

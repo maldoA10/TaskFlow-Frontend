@@ -33,6 +33,7 @@ interface BoardState {
 
   clearError: () => void
   setActiveBoard: (board: BoardWithRelations | null) => void
+  refreshFromIDB: (boardId: string) => Promise<void>
 }
 
 function sortedByPosition<T extends { position: number }>(arr: T[]): T[] {
@@ -49,6 +50,23 @@ export const useBoardStore = create<BoardState>((set, get) => ({
   clearError: () => set({ error: null }),
 
   setActiveBoard: (board) => set({ activeBoard: board }),
+
+  refreshFromIDB: async (boardId) => {
+    const cachedBoard = await dbGetById<Board>('boards', boardId)
+    const cachedColumns = await dbGetByIndex<Column>('columns', 'boardId', boardId)
+    const cachedTasks = await dbGetByIndex<Task>('tasks', 'boardId', boardId)
+    if (!cachedBoard || cachedColumns.length === 0) return
+    const cols = sortedByPosition(cachedColumns).map((col) => ({
+      ...col,
+      tasks: sortedByPosition(cachedTasks.filter((t) => t.columnId === col.id)),
+    }))
+    set((s) => ({
+      activeBoard:
+        s.activeBoard?.id === boardId
+          ? { ...cachedBoard, columns: cols, members: s.activeBoard.members }
+          : s.activeBoard,
+    }))
+  },
 
   // Boards list
 
