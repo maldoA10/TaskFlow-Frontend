@@ -28,12 +28,17 @@ interface BoardState {
     priority?: string
     dueDate?: string
     tags?: string[]
+    assigneeId?: string
   }) => Promise<Task>
   deleteTask: (taskId: string) => Promise<void>
 
   clearError: () => void
   setActiveBoard: (board: BoardWithRelations | null) => void
   refreshFromIDB: (boardId: string) => Promise<void>
+
+  // WebSocket-driven remote updates (no API calls, no IDB writes)
+  applyRemoteTask: (task: Task) => void
+  applyRemoteDelete: (taskId: string) => void
 }
 
 function sortedByPosition<T extends { position: number }>(arr: T[]): T[] {
@@ -165,18 +170,75 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     const board = get().activeBoard
     if (!board) throw new Error('No hay tablero activo')
 
-    const { task } = await tasksApi.create(board.id, data)
-    await dbPut('tasks', task)
+    // Generate local UUID so we can show the task immediately offline
+    const localId = crypto.randomUUID()
+    const col = board.columns.find((c) => c.id === data.columnId)
+    const position = col ? col.tasks.length : 0
 
-    // Optimistically add to active board state
+    const optimistic: Task = {
+      id: localId,
+      columnId: data.columnId,
+      boardId: board.id,
+      title: data.title,
+      description: data.description,
+      priority: (data.priority as Task['priority']) ?? 'MEDIUM',
+      dueDate: data.dueDate,
+      position,
+      assigneeId: data.assigneeId,
+      createdById: '',
+      tags: data.tags ?? [],
+      version: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+
+    // IDB + Zustand first
+    await dbPut('tasks', optimistic)
     set((s) => {
       if (!s.activeBoard) return s
       const cols = s.activeBoard.columns.map((col) =>
-        col.id === task.columnId ? { ...col, tasks: sortedByPosition([...col.tasks, task]) } : col
+        col.id === optimistic.columnId
+          ? {
+              ...col,
+              tasks: sortedByPosition([...col.tasks.filter((t) => t.id !== localId), optimistic]),
+            }
+          : col
       )
       return { activeBoard: { ...s.activeBoard, columns: cols } }
     })
-    return task
+
+    // Try API — on failure enqueue CREATE for sync
+    try {
+      const { task } = await tasksApi.create(board.id, data)
+      // Replace optimistic entry with server-confirmed task
+      await dbDelete('tasks', localId)
+      await dbPut('tasks', task)
+      set((s) => {
+        if (!s.activeBoard) return s
+        const cols = s.activeBoard.columns.map((col) => ({
+          ...col,
+          tasks: sortedByPosition(col.tasks.map((t) => (t.id === localId ? task : t))),
+        }))
+        return { activeBoard: { ...s.activeBoard, columns: cols } }
+      })
+      return task
+    } catch {
+      await enqueueSyncOp({
+        entityType: 'task',
+        entityId: localId,
+        operation: 'CREATE',
+        payload: {
+          ...data,
+          boardId: board.id,
+          position,
+        } as Record<string, unknown>,
+        timestamp: Date.now(),
+        status: 'pending',
+        retryCount: 0,
+        version: 1,
+      })
+      return optimistic
+    }
   },
 
   updateTask: async (taskId, data) => {
@@ -279,6 +341,37 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         version: movingTask.version,
       })
     }
+  },
+
+  applyRemoteTask: (task) => {
+    // Persist to IDB so pull/refreshFromIDB doesn't lose this change
+    dbPut('tasks', task).catch(() => {})
+
+    set((s) => {
+      if (!s.activeBoard || s.activeBoard.id !== task.boardId) return s
+      // Remove from all columns, then insert in target column
+      const colsWithout = s.activeBoard.columns.map((col) => ({
+        ...col,
+        tasks: col.tasks.filter((t) => t.id !== task.id),
+      }))
+      const cols = colsWithout.map((col) =>
+        col.id === task.columnId ? { ...col, tasks: sortedByPosition([...col.tasks, task]) } : col
+      )
+      return { activeBoard: { ...s.activeBoard, columns: cols } }
+    })
+  },
+
+  applyRemoteDelete: (taskId) => {
+    dbDelete('tasks', taskId).catch(() => {})
+
+    set((s) => {
+      if (!s.activeBoard) return s
+      const cols = s.activeBoard.columns.map((col) => ({
+        ...col,
+        tasks: col.tasks.filter((t) => t.id !== taskId),
+      }))
+      return { activeBoard: { ...s.activeBoard, columns: cols } }
+    })
   },
 
   deleteTask: async (taskId) => {

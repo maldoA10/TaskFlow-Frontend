@@ -149,3 +149,38 @@ export const tasksApi = {
 
   delete: (id: string) => apiFetch<void>(`/tasks/${id}`, { method: 'DELETE' }),
 }
+
+// Comments endpoints
+
+export const commentsApi = {
+  list: (taskId: string) =>
+    apiFetch<{ comments: import('@/types').Comment[] }>(`/tasks/${taskId}/comments`),
+
+  create: (taskId: string, content: string) =>
+    apiFetch<{ comment: import('@/types').Comment }>(`/tasks/${taskId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    }),
+}
+
+// Invitations endpoints
+
+export const invitationsApi = {
+  list: () => apiFetch<{ invitations: import('@/types').Invitation[] }>('/invitations'),
+
+  invite: (boardId: string, email: string) =>
+    apiFetch<{ invitation: import('@/types').Invitation }>(`/boards/${boardId}/invite`, {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  accept: (id: string) =>
+    apiFetch<{ invitation: import('@/types').Invitation }>(`/invitations/${id}/accept`, {
+      method: 'POST',
+    }),
+
+  reject: (id: string) =>
+    apiFetch<{ invitation: import('@/types').Invitation }>(`/invitations/${id}/reject`, {
+      method: 'POST',
+    }),
+}

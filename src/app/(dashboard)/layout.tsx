@@ -8,7 +8,7 @@ import { useBoardStore } from '@/stores/boardStore'
 import { OnlineStatusDot } from '@/components/layout/OfflineIndicator'
 import { SyncIndicator } from '@/components/layout/SyncIndicator'
 import { ConflictModal } from '@/components/board/ConflictModal'
-import { Loader2, LayoutGrid, Plus, ChevronLeft, ChevronRight, LogOut } from 'lucide-react'
+import { Loader2, LayoutGrid, Plus, ChevronLeft, ChevronRight, LogOut, Mail } from 'lucide-react'
 import { clsx } from 'clsx'
 import {
   processSyncQueue,
@@ -17,6 +17,7 @@ import {
   clearStaleOps,
   type ConflictItem,
 } from '@/lib/sync'
+import { invitationsApi } from '@/lib/api'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -25,6 +26,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { boards, fetchBoards } = useBoardStore()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [conflicts, setConflicts] = useState<ConflictItem[]>([])
+  const [pendingInvites, setPendingInvites] = useState(0)
 
   const applyPullChanges = useCallback(async () => {
     const changes = await pullRemoteChanges()
@@ -46,13 +48,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [applyPullChanges])
 
   useEffect(() => {
+    const checkInvites = () => {
+      if (navigator.onLine) {
+        invitationsApi
+          .list()
+          .then(({ invitations }) => setPendingInvites(invitations.length))
+          .catch(() => {})
+      }
+    }
+
     loadFromStorage().then(() => {
       const { isAuthenticated: auth } = useAuthStore.getState()
       if (!auth) router.push('/login')
       else {
-        clearStaleOps() // limpiar ops viejas de sesiones anteriores
+        clearStaleOps()
         fetchBoards()
         runSync()
+        checkInvites()
       }
     })
 
@@ -65,9 +77,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (navigator.onLine) applyPullChanges()
     }, 30_000)
 
+    // Poll de invitaciones cada 60s
+    const inviteInterval = setInterval(() => {
+      if (navigator.onLine) checkInvites()
+    }, 60_000)
+
     // Pull al enfocar ventana
     const handleFocus = () => {
-      if (navigator.onLine) applyPullChanges()
+      if (navigator.onLine) {
+        applyPullChanges()
+        checkInvites()
+      }
     }
     window.addEventListener('focus', handleFocus)
 
@@ -78,6 +98,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('focus', handleFocus)
       clearInterval(pullInterval)
+      clearInterval(inviteInterval)
       unsubConflict()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -179,6 +200,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             >
               <LayoutGrid className="w-4 h-4 flex-shrink-0" />
               {sidebarOpen && <span className="truncate">Todos los tableros</span>}
+            </Link>
+
+            <Link
+              href="/invitations"
+              onClick={() => setPendingInvites(0)}
+              className={clsx(
+                'flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-sm transition-colors group',
+                pathname === '/invitations'
+                  ? 'bg-accent-indigo/15 text-accent-indigo'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-elevated'
+              )}
+              title={!sidebarOpen ? 'Invitaciones' : undefined}
+            >
+              <div className="relative flex-shrink-0">
+                <Mail className="w-4 h-4" />
+                {pendingInvites > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-accent-rose text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                    {pendingInvites}
+                  </span>
+                )}
+              </div>
+              {sidebarOpen && <span className="truncate">Invitaciones</span>}
             </Link>
 
             {sidebarOpen && boards.length > 0 && (
