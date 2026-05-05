@@ -24,9 +24,10 @@ interface TaskCardProps {
   task: Task
   onClick: (task: Task) => void
   isDragging?: boolean
+  dimmed?: boolean
 }
 
-export function TaskCard({ task, onClick, isDragging }: TaskCardProps) {
+export function TaskCard({ task, onClick, isDragging, dimmed }: TaskCardProps) {
   const {
     attributes,
     listeners,
@@ -58,7 +59,8 @@ export function TaskCard({ task, onClick, isDragging }: TaskCardProps) {
         'hover:border-accent-indigo/40 hover:bg-bg-elevated transition-all duration-150',
         'select-none touch-none',
         isSortableDragging && 'opacity-40',
-        isDragging && 'scale-[1.02] shadow-lg shadow-black/30 border-accent-indigo/60 rotate-1'
+        isDragging && 'scale-[1.02] shadow-lg shadow-black/30 border-accent-indigo/60 rotate-1',
+        dimmed && !isSortableDragging && 'opacity-30 pointer-events-none'
       )}
     >
       {/* Priority bar */}

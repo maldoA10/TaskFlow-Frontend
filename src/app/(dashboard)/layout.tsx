@@ -18,6 +18,8 @@ import {
   type ConflictItem,
 } from '@/lib/sync'
 import { invitationsApi } from '@/lib/api'
+import { registerPush, unregisterPush } from '@/lib/push'
+import { SearchBar } from '@/components/search/SearchBar'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -65,6 +67,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         fetchBoards()
         runSync()
         checkInvites()
+        registerPush().catch(() => {})
       }
     })
 
@@ -134,6 +137,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <div className="flex-1" />
 
+        <SearchBar />
         <SyncIndicator />
         <OnlineStatusDot />
 
@@ -146,7 +150,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {user?.name}
           </span>
           <button
-            onClick={() => logout().then(() => router.push('/login'))}
+            onClick={() =>
+              unregisterPush()
+                .catch(() => {})
+                .then(() => logout())
+                .then(() => router.push('/login'))
+            }
             className="w-7 h-7 rounded flex items-center justify-center text-text-secondary hover:text-accent-rose hover:bg-accent-rose/10 transition-colors"
             title="Cerrar sesión"
           >

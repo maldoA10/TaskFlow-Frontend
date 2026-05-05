@@ -210,14 +210,19 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     // Try API — on failure enqueue CREATE for sync
     try {
       const { task } = await tasksApi.create(board.id, data)
-      // Replace optimistic entry with server-confirmed task
+      // Replace optimistic entry with server-confirmed task.
+      // Must filter out BOTH localId AND task.id because applyRemoteTask (WS broadcast)
+      // may have already added the server task before this response arrived.
       await dbDelete('tasks', localId)
       await dbPut('tasks', task)
       set((s) => {
         if (!s.activeBoard) return s
         const cols = s.activeBoard.columns.map((col) => ({
           ...col,
-          tasks: sortedByPosition(col.tasks.map((t) => (t.id === localId ? task : t))),
+          tasks: sortedByPosition([
+            ...col.tasks.filter((t) => t.id !== localId && t.id !== task.id),
+            ...(col.id === task.columnId ? [task] : []),
+          ]),
         }))
         return { activeBoard: { ...s.activeBoard, columns: cols } }
       })

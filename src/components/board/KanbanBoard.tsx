@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { clsx } from 'clsx'
 import {
   DndContext,
   DragEndEvent,
@@ -13,13 +14,20 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
-import { Users } from 'lucide-react'
+import { Users, SlidersHorizontal } from 'lucide-react'
 import type { Task, BoardWithRelations, Column, Comment } from '@/types'
 import { KanbanColumn } from './KanbanColumn'
 import { TaskCardOverlay } from './TaskCard'
 import { TaskDetailPanel } from './TaskDetailPanel'
 import { CreateTaskModal } from './CreateTaskModal'
 import { MembersPanel } from './MembersPanel'
+import {
+  FilterPanel,
+  EMPTY_FILTERS,
+  hasActiveFilters,
+  taskPassesFilters,
+  type ActiveFilters,
+} from './FilterPanel'
 import { useBoardStore } from '@/stores/boardStore'
 import { useWebSocket, type WsMessage } from '@/hooks/useWebSocket'
 
@@ -34,6 +42,8 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [createColumnId, setCreateColumnId] = useState<string | null>(null)
   const [showMembers, setShowMembers] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const [activeFilters, setActiveFilters] = useState<ActiveFilters>(EMPTY_FILTERS)
 
   // New comment received via WS (forwarded to the open detail panel)
   const [pendingComment, setPendingComment] = useState<
@@ -163,10 +173,43 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
     ? (columns.flatMap((c) => c.tasks).find((t) => t.id === selectedTask.id) ?? selectedTask)
     : null
 
+  // Compute all unique tags from all tasks for the filter panel
+  const allTags = Array.from(new Set(columns.flatMap((c) => c.tasks).flatMap((t) => t.tags))).sort()
+
+  // Compute which task IDs are dimmed (visible but faded)
+  const filterActive = hasActiveFilters(activeFilters)
+  const dimmedTaskIds = filterActive
+    ? new Set(
+        columns
+          .flatMap((c) => c.tasks)
+          .filter((t) => !taskPassesFilters(t, activeFilters))
+          .map((t) => t.id)
+      )
+    : undefined
+
   return (
     <>
-      {/* Members button — rendered in the board header area */}
-      <div className="flex justify-end px-6 pt-3">
+      {/* Toolbar: members + filter toggle */}
+      <div className="flex items-center justify-end gap-2 px-6 pt-3">
+        <button
+          onClick={() => setShowFilters((v) => !v)}
+          className={clsx(
+            'flex items-center gap-1.5 text-xs bg-bg-elevated border px-3 py-1.5 rounded-lg transition-colors',
+            showFilters || filterActive
+              ? 'text-accent-indigo border-accent-indigo/40'
+              : 'text-text-secondary hover:text-text-primary border-border-subtle'
+          )}
+        >
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+          <span>Filtros{filterActive ? ' ·' : ''}</span>
+          {filterActive && (
+            <span className="w-4 h-4 rounded-full bg-accent-indigo text-white text-[9px] font-bold flex items-center justify-center leading-none">
+              {activeFilters.priorities.length +
+                activeFilters.assigneeIds.length +
+                activeFilters.tags.length}
+            </span>
+          )}
+        </button>
         <button
           onClick={() => setShowMembers(true)}
           className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary bg-bg-elevated hover:bg-bg-elevated/80 border border-border-subtle px-3 py-1.5 rounded-lg transition-colors"
@@ -177,6 +220,16 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
           </span>
         </button>
       </div>
+
+      {/* Filter panel */}
+      {showFilters && (
+        <FilterPanel
+          members={board.members}
+          allTags={allTags}
+          filters={activeFilters}
+          onChange={setActiveFilters}
+        />
+      )}
 
       <DndContext
         sensors={sensors}
@@ -192,6 +245,7 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
               column={col}
               onTaskClick={setSelectedTask}
               onAddTask={(colId) => setCreateColumnId(colId)}
+              dimmedTaskIds={dimmedTaskIds}
             />
           ))}
         </div>
