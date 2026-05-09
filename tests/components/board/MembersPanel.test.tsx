@@ -10,11 +10,25 @@ import type { BoardMember } from '@/types'
 
 // Mock de invitationsApi
 const mockInvite = jest.fn()
-jest.mock('@/lib/api', () => ({
-  invitationsApi: {
-    invite: (...args: unknown[]) => mockInvite(...args),
-  },
-}))
+
+jest.mock('@/lib/api', () => {
+  class ApiError extends Error {
+    code: string
+    status: number
+    constructor(code: string, message: string, status: number) {
+      super(message)
+      this.name = 'ApiError'
+      this.code = code
+      this.status = status
+    }
+  }
+  return {
+    ApiError,
+    invitationsApi: {
+      invite: (...args: unknown[]) => mockInvite(...args),
+    },
+  }
+})
 
 const mockOnClose = jest.fn()
 

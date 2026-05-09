@@ -12,10 +12,38 @@ import type { Task, Column, BoardMember } from '@/types'
 const mockCommentsList = jest.fn()
 const mockCommentsCreate = jest.fn()
 
-jest.mock('@/lib/api', () => ({
-  commentsApi: {
-    list: (...args: unknown[]) => mockCommentsList(...args),
-    create: (...args: unknown[]) => mockCommentsCreate(...args),
+jest.mock('@/lib/api', () => {
+  class ApiError extends Error {
+    code: string
+    status: number
+    constructor(code: string, message: string, status: number) {
+      super(message)
+      this.name = 'ApiError'
+      this.code = code
+      this.status = status
+    }
+  }
+  return {
+    ApiError,
+    commentsApi: {
+      list: (...args: unknown[]) => mockCommentsList(...args),
+      create: (...args: unknown[]) => mockCommentsCreate(...args),
+    },
+    attachmentsApi: {
+      list: jest.fn().mockResolvedValue({ attachments: [] }),
+      getUrl: jest.fn().mockReturnValue('http://localhost/attachment'),
+      uploadBase64: jest.fn().mockResolvedValue({ attachment: {} }),
+      delete: jest.fn().mockResolvedValue(undefined),
+    },
+  }
+})
+
+// Mock de authStore para que postComment encuentre un usuario
+jest.mock('@/stores/authStore', () => ({
+  useAuthStore: {
+    getState: () => ({
+      user: { id: 'u1', name: 'Ana García', email: 'ana@test.com', avatarUrl: null, createdAt: '' },
+    }),
   },
 }))
 
