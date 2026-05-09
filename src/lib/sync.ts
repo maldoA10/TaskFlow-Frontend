@@ -4,7 +4,7 @@ import type { Board, Column, Task } from '@/types'
 
 export { clearStaleOps }
 
-// ─── Estado global del sync ───────────────────────────────────────────────────
+// Estado global del sync
 
 export type SyncState = 'idle' | 'syncing' | 'error'
 
@@ -43,7 +43,7 @@ export function onConflict(fn: ConflictListener) {
   return () => conflictListeners.delete(fn)
 }
 
-// ─── Procesar cola de sync ────────────────────────────────────────────────────
+// Procesar cola de sync
 
 export async function processSyncQueue(): Promise<void> {
   if (isSyncing || typeof window === 'undefined') return
@@ -130,7 +130,7 @@ export async function processSyncQueue(): Promise<void> {
   }
 }
 
-// ─── Pull de cambios remotos ──────────────────────────────────────────────────
+// Pull de cambios remotos
 
 export async function pullRemoteChanges(): Promise<{
   boards: Board[]
@@ -166,7 +166,7 @@ export async function pullRemoteChanges(): Promise<{
   }
 }
 
-// ─── Aplicar resolución de conflicto ─────────────────────────────────────────
+// Aplicar resolución de conflicto
 
 export async function resolveConflict(
   item: ConflictItem,
