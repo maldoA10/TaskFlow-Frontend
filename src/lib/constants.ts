@@ -1,5 +1,16 @@
 export const API_URL = process.env.NEXT_PUBLIC_API_URL
 
+// Derive WS URL from API_URL or use explicit env var
+export const WS_URL = (() => {
+  const explicit = process.env.NEXT_PUBLIC_WS_URL
+  if (explicit) return explicit
+  const api = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api'
+  return api
+    .replace('/api', '/ws')
+    .replace(/^http:\/\//, 'ws://')
+    .replace(/^https:\/\//, 'wss://')
+})()
+
 export const DB_NAME = 'taskflow-db'
 export const DB_VERSION = 1
 
