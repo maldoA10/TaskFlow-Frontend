@@ -15,11 +15,12 @@ import {
   Cloud,
   CloudOff,
 } from 'lucide-react'
-import type { Task, Column, Comment, BoardMember } from '@/types'
+import type { Task, Column, Comment, BoardMember, Attachment } from '@/types'
 import { commentsApi, ApiError } from '@/lib/api'
 import { dbPut, enqueueSyncOp } from '@/lib/db'
 import { useAuthStore } from '@/stores/authStore'
 import { clsx } from 'clsx'
+import { AttachmentsSection } from './AttachmentsSection'
 
 const PRIORITIES: { value: Task['priority']; label: string; color: string; bg: string }[] = [
   { value: 'LOW', label: 'Baja', color: 'text-text-secondary', bg: 'bg-border-subtle' },
@@ -43,6 +44,10 @@ interface TaskDetailPanelProps {
   onDelete: (taskId: string) => Promise<void>
   pendingComment: CommentWithAuthor | null
   onPendingCommentConsumed: () => void
+  pendingAttachment?: (Attachment & { taskId: string }) | null
+  deletedAttachmentId?: string | null
+  onPendingAttachmentConsumed?: () => void
+  onDeletedAttachmentConsumed?: () => void
 }
 
 function getInitials(name: string) {
@@ -63,6 +68,10 @@ export function TaskDetailPanel({
   onDelete,
   pendingComment,
   onPendingCommentConsumed,
+  pendingAttachment,
+  deletedAttachmentId,
+  onPendingAttachmentConsumed,
+  onDeletedAttachmentConsumed,
 }: TaskDetailPanelProps) {
   const [title, setTitle] = useState(task.title)
   const [description, setDescription] = useState(task.description ?? '')
@@ -198,6 +207,8 @@ export function TaskDetailPanel({
             name: currentUser.name,
             email: currentUser.email,
             avatarUrl: currentUser.avatarUrl,
+            createdAt: currentUser.createdAt,
+            updatedAt: currentUser.updatedAt,
           },
         }
         // Save to IDB
@@ -500,6 +511,15 @@ export function TaskDetailPanel({
             </div>
             {commentError && <p className="text-xs text-accent-rose mt-1.5">{commentError}</p>}
           </div>
+
+          {/* Attachments */}
+          <AttachmentsSection
+            taskId={task.id}
+            pendingAttachment={pendingAttachment ?? null}
+            deletedAttachmentId={deletedAttachmentId ?? null}
+            onPendingAttachmentConsumed={onPendingAttachmentConsumed ?? (() => {})}
+            onDeletedAttachmentConsumed={onDeletedAttachmentConsumed ?? (() => {})}
+          />
 
           {/* Metadata */}
           <div className="pt-2 border-t border-border-subtle">

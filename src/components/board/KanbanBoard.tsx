@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
 import { Users, SlidersHorizontal } from 'lucide-react'
-import type { Task, BoardWithRelations, Column, Comment } from '@/types'
+import type { Task, BoardWithRelations, Column, Comment, Attachment } from '@/types'
 import { KanbanColumn } from './KanbanColumn'
 import { TaskCardOverlay } from './TaskCard'
 import { TaskDetailPanel } from './TaskDetailPanel'
@@ -50,6 +50,12 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
     (Comment & { author: { id: string; name: string; email: string; avatarUrl?: string } }) | null
   >(null)
 
+  // Attachment events from WS
+  const [pendingAttachment, setPendingAttachment] = useState<
+    (Attachment & { taskId: string }) | null
+  >(null)
+  const [deletedAttachmentId, setDeletedAttachmentId] = useState<string | null>(null)
+
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   // Track columns locally during drag to enable visual reordering
@@ -69,6 +75,12 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
             author: { id: string; name: string; email: string; avatarUrl?: string }
           }
         )
+      } else if (msg.type === 'ATTACHMENT_ADDED') {
+        const { taskId, attachment } = msg.payload as { taskId: string; attachment: Attachment }
+        setPendingAttachment({ ...attachment, taskId })
+      } else if (msg.type === 'ATTACHMENT_DELETED') {
+        const { attachmentId } = msg.payload as { attachmentId: string; taskId: string }
+        setDeletedAttachmentId(attachmentId)
       }
     },
     [applyRemoteTask, applyRemoteDelete]
@@ -267,6 +279,10 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
           }}
           pendingComment={pendingComment}
           onPendingCommentConsumed={() => setPendingComment(null)}
+          pendingAttachment={pendingAttachment}
+          deletedAttachmentId={deletedAttachmentId}
+          onPendingAttachmentConsumed={() => setPendingAttachment(null)}
+          onDeletedAttachmentConsumed={() => setDeletedAttachmentId(null)}
         />
       )}
 

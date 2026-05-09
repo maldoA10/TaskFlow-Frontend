@@ -12,7 +12,7 @@ export const WS_URL = (() => {
 })()
 
 export const DB_NAME = 'taskflow-db'
-export const DB_VERSION = 1
+export const DB_VERSION = 2
 
 export const SYNC_TAG = 'taskflow-sync'
 export const SYNC_INTERVAL_MS = 30_000
