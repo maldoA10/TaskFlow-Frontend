@@ -84,7 +84,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
       set({ user: result.user, accessToken: result.accessToken, isAuthenticated: true })
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : 'Error al iniciar sesión'
+      let msg = 'Error al iniciar sesión'
+      if (err instanceof ApiError) {
+        if (err.code === 'UNAUTHORIZED') msg = 'Email o contraseña incorrectos'
+        else if (err.code === 'TOO_MANY_REQUESTS') msg = 'Demasiados intentos. Intenta más tarde'
+        else msg = err.message
+      }
       set({ error: msg })
       throw err
     } finally {
@@ -108,7 +113,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
       set({ user: result.user, accessToken: result.accessToken, isAuthenticated: true })
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : 'Error al registrarse'
+      let msg = 'Error al registrarse'
+      if (err instanceof ApiError) {
+        if (err.code === 'CONFLICT') msg = 'Ya existe una cuenta con ese email'
+        else if (err.code === 'TOO_MANY_REQUESTS') msg = 'Demasiados intentos. Intenta más tarde'
+        else msg = err.message
+      }
       set({ error: msg })
       throw err
     } finally {

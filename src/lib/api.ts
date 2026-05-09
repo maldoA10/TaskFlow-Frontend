@@ -163,6 +163,51 @@ export const commentsApi = {
     }),
 }
 
+// Attachments endpoints
+
+export const attachmentsApi = {
+  list: (taskId: string) =>
+    apiFetch<{ attachments: import('@/types').Attachment[] }>(`/tasks/${taskId}/attachments`),
+
+  // Upload from base64 (camera capture or file reader)
+  uploadBase64: (taskId: string, data: string, mimeType: string, originalName?: string) =>
+    apiFetch<{ attachment: import('@/types').Attachment }>(`/tasks/${taskId}/attachments`, {
+      method: 'POST',
+      body: JSON.stringify({ data, mimeType, originalName }),
+    }),
+
+  // Upload file using FormData
+  uploadFile: async (taskId: string, file: File) => {
+    const token = await getMeta<string>('accessToken')
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const res = await fetch(`${API_URL}/tasks/${taskId}/attachments`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    })
+
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ error: { message: 'Error de red' } }))
+      throw new ApiError(
+        error.error?.code ?? 'UPLOAD_ERROR',
+        error.error?.message ?? 'Error al subir archivo',
+        res.status
+      )
+    }
+
+    return res.json() as Promise<{ attachment: import('@/types').Attachment }>
+  },
+
+  // Get attachment URL
+  getUrl: (taskId: string, attachmentId: string) =>
+    `${API_URL}/tasks/${taskId}/attachments/${attachmentId}`,
+
+  delete: (taskId: string, attachmentId: string) =>
+    apiFetch<void>(`/tasks/${taskId}/attachments/${attachmentId}`, { method: 'DELETE' }),
+}
+
 // Invitations endpoints
 
 export const invitationsApi = {

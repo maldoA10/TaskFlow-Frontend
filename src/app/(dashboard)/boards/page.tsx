@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Loader2, LayoutGrid, Trash2 } from 'lucide-react'
+import { Plus, Loader2, LayoutGrid, Trash2, X } from 'lucide-react'
 import { useBoardStore } from '@/stores/boardStore'
 import { CreateBoardModal } from '@/components/board/CreateBoardModal'
 import type { Board } from '@/types'
@@ -102,15 +102,37 @@ function BoardCard({
 
 export default function BoardsPage() {
   const router = useRouter()
-  const { boards, isLoadingBoards, fetchBoards, createBoard, deleteBoard } = useBoardStore()
+  const { boards, isLoadingBoards, fetchBoards, createBoard, deleteBoard, error, clearError } =
+    useBoardStore()
   const [showCreate, setShowCreate] = useState(false)
 
   useEffect(() => {
     fetchBoards()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const handleDeleteBoard = async (id: string) => {
+    try {
+      await deleteBoard(id)
+    } catch {
+      // Error is already set in the store
+    }
+  }
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
+      {/* Error banner */}
+      {error && (
+        <div className="mb-6 px-4 py-3 rounded-lg bg-accent-rose/10 border border-accent-rose/20 flex items-center justify-between">
+          <p className="text-sm text-accent-rose">{error}</p>
+          <button
+            onClick={clearError}
+            className="w-6 h-6 rounded flex items-center justify-center text-accent-rose hover:bg-accent-rose/20 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Page header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -169,7 +191,7 @@ export default function BoardsPage() {
               key={board.id}
               board={board}
               onOpen={() => router.push(`/board/${board.id}`)}
-              onDelete={() => deleteBoard(board.id)}
+              onDelete={() => handleDeleteBoard(board.id)}
             />
           ))}
 

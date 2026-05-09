@@ -86,7 +86,20 @@ export async function unregisterPush(): Promise<void> {
   if (typeof window === 'undefined') return
   if (!('serviceWorker' in navigator)) return
   try {
-    const registration = await navigator.serviceWorker.ready
+    // Prefer getRegistrations() which resolves immediately even when no SW is
+    // active (avoids .ready hanging forever in dev mode where PWA is disabled).
+    // Fall back to .ready for environments that only mock that property (tests).
+    const sw = navigator.serviceWorker
+    let registration: ServiceWorkerRegistration | undefined
+
+    if (typeof sw.getRegistrations === 'function') {
+      const registrations = await sw.getRegistrations()
+      if (registrations.length === 0) return
+      registration = await sw.ready
+    } else {
+      registration = await sw.ready
+    }
+
     const subscription = await registration.pushManager.getSubscription()
     if (subscription) {
       const { endpoint } = subToPayload(subscription)
