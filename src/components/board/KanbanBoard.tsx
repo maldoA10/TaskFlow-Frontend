@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
+import { clsx } from 'clsx'
 import {
   DndContext,
   DragEndEvent,
@@ -13,22 +14,41 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
-import type { Task, BoardWithRelations, Column } from '@/types'
+import { Users, SlidersHorizontal } from 'lucide-react'
+import type { Task, BoardWithRelations, Column, Comment } from '@/types'
 import { KanbanColumn } from './KanbanColumn'
 import { TaskCardOverlay } from './TaskCard'
 import { TaskDetailPanel } from './TaskDetailPanel'
 import { CreateTaskModal } from './CreateTaskModal'
+import { MembersPanel } from './MembersPanel'
+import {
+  FilterPanel,
+  EMPTY_FILTERS,
+  hasActiveFilters,
+  taskPassesFilters,
+  type ActiveFilters,
+} from './FilterPanel'
 import { useBoardStore } from '@/stores/boardStore'
+import { useWebSocket, type WsMessage } from '@/hooks/useWebSocket'
 
 interface KanbanBoardProps {
   board: BoardWithRelations
 }
 
 export function KanbanBoard({ board }: KanbanBoardProps) {
-  const { moveTask, updateTask, createTask, deleteTask } = useBoardStore()
+  const { moveTask, updateTask, createTask, deleteTask, applyRemoteTask, applyRemoteDelete } =
+    useBoardStore()
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [createColumnId, setCreateColumnId] = useState<string | null>(null)
+  const [showMembers, setShowMembers] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const [activeFilters, setActiveFilters] = useState<ActiveFilters>(EMPTY_FILTERS)
+
+  // New comment received via WS (forwarded to the open detail panel)
+  const [pendingComment, setPendingComment] = useState<
+    (Comment & { author: { id: string; name: string; email: string; avatarUrl?: string } }) | null
+  >(null)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
@@ -36,8 +56,29 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
   const [localColumns, setLocalColumns] = useState<null | (Column & { tasks: Task[] })[]>(null)
   const columns = localColumns ?? board.columns
 
+  // ── WebSocket ──────────────────────────────────────────────────────────────
+  const handleWsMessage = useCallback(
+    (msg: WsMessage) => {
+      if (msg.type === 'TASK_CREATED' || msg.type === 'TASK_UPDATED' || msg.type === 'TASK_MOVED') {
+        applyRemoteTask(msg.payload as Task)
+      } else if (msg.type === 'TASK_DELETED') {
+        applyRemoteDelete((msg.payload as { id: string }).id)
+      } else if (msg.type === 'COMMENT_ADDED') {
+        setPendingComment(
+          msg.payload as Comment & {
+            author: { id: string; name: string; email: string; avatarUrl?: string }
+          }
+        )
+      }
+    },
+    [applyRemoteTask, applyRemoteDelete]
+  )
+
+  useWebSocket(board.id, handleWsMessage)
+
+  // ── DnD ──────────────────────────────────────────────────────────────────
+
   function findColumn(id: string): (Column & { tasks: Task[] }) | undefined {
-    // id might be a task id or column id
     for (const col of columns) {
       if (col.id === id) return col
       if (col.tasks.find((t) => t.id === id)) return col
@@ -65,7 +106,6 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
     if (!activeCol || !overCol) return
 
     if (activeCol.id === overCol.id) {
-      // Same column reorder
       const oldIndex = activeCol.tasks.findIndex((t) => t.id === activeId)
       const newIndex = overCol.tasks.findIndex((t) => t.id === overId)
       if (oldIndex !== -1 && newIndex !== -1) {
@@ -78,7 +118,6 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
         )
       }
     } else {
-      // Cross-column move
       const task = activeCol.tasks.find((t) => t.id === activeId)!
       const overIndex = overCol.tasks.findIndex((t) => t.id === overId)
       const insertAt = overIndex === -1 ? overCol.tasks.length : overIndex
@@ -134,8 +173,64 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
     ? (columns.flatMap((c) => c.tasks).find((t) => t.id === selectedTask.id) ?? selectedTask)
     : null
 
+  // Compute all unique tags from all tasks for the filter panel
+  const allTags = Array.from(new Set(columns.flatMap((c) => c.tasks).flatMap((t) => t.tags))).sort()
+
+  // Compute which task IDs are dimmed (visible but faded)
+  const filterActive = hasActiveFilters(activeFilters)
+  const dimmedTaskIds = filterActive
+    ? new Set(
+        columns
+          .flatMap((c) => c.tasks)
+          .filter((t) => !taskPassesFilters(t, activeFilters))
+          .map((t) => t.id)
+      )
+    : undefined
+
   return (
     <>
+      {/* Toolbar: members + filter toggle */}
+      <div className="flex items-center justify-end gap-2 px-6 pt-3">
+        <button
+          onClick={() => setShowFilters((v) => !v)}
+          className={clsx(
+            'flex items-center gap-1.5 text-xs bg-bg-elevated border px-3 py-1.5 rounded-lg transition-colors',
+            showFilters || filterActive
+              ? 'text-accent-indigo border-accent-indigo/40'
+              : 'text-text-secondary hover:text-text-primary border-border-subtle'
+          )}
+        >
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+          <span>Filtros{filterActive ? ' ·' : ''}</span>
+          {filterActive && (
+            <span className="w-4 h-4 rounded-full bg-accent-indigo text-white text-[9px] font-bold flex items-center justify-center leading-none">
+              {activeFilters.priorities.length +
+                activeFilters.assigneeIds.length +
+                activeFilters.tags.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setShowMembers(true)}
+          className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary bg-bg-elevated hover:bg-bg-elevated/80 border border-border-subtle px-3 py-1.5 rounded-lg transition-colors"
+        >
+          <Users className="w-3.5 h-3.5" />
+          <span>
+            {board.members.length} miembro{board.members.length !== 1 ? 's' : ''}
+          </span>
+        </button>
+      </div>
+
+      {/* Filter panel */}
+      {showFilters && (
+        <FilterPanel
+          members={board.members}
+          allTags={allTags}
+          filters={activeFilters}
+          onChange={setActiveFilters}
+        />
+      )}
+
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -143,13 +238,14 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
         onDragOver={onDragOver}
         onDragEnd={onDragEnd}
       >
-        <div className="flex gap-4 h-full px-6 pb-6 pt-4 overflow-x-auto">
+        <div className="flex gap-4 h-full px-6 pb-6 pt-3 overflow-x-auto">
           {columns.map((col) => (
             <KanbanColumn
               key={col.id}
               column={col}
               onTaskClick={setSelectedTask}
               onAddTask={(colId) => setCreateColumnId(colId)}
+              dimmedTaskIds={dimmedTaskIds}
             />
           ))}
         </div>
@@ -162,12 +258,15 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
         <TaskDetailPanel
           task={currentSelectedTask}
           columns={board.columns}
+          members={board.members}
           onClose={() => setSelectedTask(null)}
           onUpdate={updateTask}
           onDelete={async (id) => {
             await deleteTask(id)
             setSelectedTask(null)
           }}
+          pendingComment={pendingComment}
+          onPendingCommentConsumed={() => setPendingComment(null)}
         />
       )}
 
@@ -181,6 +280,15 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
             await createTask(data)
             setCreateColumnId(null)
           }}
+        />
+      )}
+
+      {/* Members panel */}
+      {showMembers && (
+        <MembersPanel
+          boardId={board.id}
+          members={board.members}
+          onClose={() => setShowMembers(false)}
         />
       )}
     </>

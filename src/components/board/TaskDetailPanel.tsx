@@ -1,8 +1,20 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Calendar, Tag, AlertTriangle, Trash2, Check, Plus } from 'lucide-react'
-import type { Task, Column } from '@/types'
+import {
+  X,
+  Calendar,
+  Tag,
+  AlertTriangle,
+  Trash2,
+  Check,
+  Plus,
+  MessageCircle,
+  User,
+  Send,
+} from 'lucide-react'
+import type { Task, Column, Comment, BoardMember } from '@/types'
+import { commentsApi } from '@/lib/api'
 import { clsx } from 'clsx'
 
 const PRIORITIES: { value: Task['priority']; label: string; color: string; bg: string }[] = [
@@ -12,20 +24,41 @@ const PRIORITIES: { value: Task['priority']; label: string; color: string; bg: s
   { value: 'URGENT', label: 'Urgente', color: 'text-accent-rose', bg: 'bg-accent-rose/20' },
 ]
 
+type CommentWithAuthor = Comment & {
+  author: { id: string; name: string; email: string; avatarUrl?: string }
+}
+
 interface TaskDetailPanelProps {
   task: Task
   columns: Column[]
+  members: (BoardMember & {
+    user?: { id: string; name: string; email: string; avatarUrl?: string }
+  })[]
   onClose: () => void
   onUpdate: (taskId: string, data: Partial<Task>) => Promise<void>
   onDelete: (taskId: string) => Promise<void>
+  pendingComment: CommentWithAuthor | null
+  onPendingCommentConsumed: () => void
+}
+
+function getInitials(name: string) {
+  return name
+    .split(' ')
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
 }
 
 export function TaskDetailPanel({
   task,
   columns,
+  members,
   onClose,
   onUpdate,
   onDelete,
+  pendingComment,
+  onPendingCommentConsumed,
 }: TaskDetailPanelProps) {
   const [title, setTitle] = useState(task.title)
   const [description, setDescription] = useState(task.description ?? '')
@@ -33,10 +66,46 @@ export function TaskDetailPanel({
   const [dueDate, setDueDate] = useState(task.dueDate ? task.dueDate.split('T')[0] : '')
   const [tags, setTags] = useState<string[]>(task.tags)
   const [tagInput, setTagInput] = useState('')
+  const [assigneeId, setAssigneeId] = useState<string>(task.assigneeId ?? '')
   const [isDirty, setIsDirty] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const titleRef = useRef<HTMLTextAreaElement>(null)
+
+  // Comments state
+  const [comments, setComments] = useState<CommentWithAuthor[]>([])
+  const [commentText, setCommentText] = useState('')
+  const [isPostingComment, setIsPostingComment] = useState(false)
+  const commentsEndRef = useRef<HTMLDivElement>(null)
+
+  // Load comments on mount
+  useEffect(() => {
+    commentsApi
+      .list(task.id)
+      .then(({ comments: c }) => {
+        setComments(c as CommentWithAuthor[])
+      })
+      .catch(() => {
+        // silently fail if offline
+      })
+  }, [task.id])
+
+  // Consume pending WS comment
+  useEffect(() => {
+    if (pendingComment && pendingComment.taskId === task.id) {
+      setComments((prev) => {
+        // Avoid duplicates
+        if (prev.some((c) => c.id === pendingComment.id)) return prev
+        return [...prev, pendingComment]
+      })
+      onPendingCommentConsumed()
+    }
+  }, [pendingComment, task.id, onPendingCommentConsumed])
+
+  // Scroll comments to bottom when new ones arrive
+  useEffect(() => {
+    commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [comments.length])
 
   // Auto-resize title textarea
   useEffect(() => {
@@ -58,6 +127,7 @@ export function TaskDetailPanel({
         priority,
         dueDate: dueDate || undefined,
         tags,
+        assigneeId: assigneeId || undefined,
       })
       setIsDirty(false)
     } finally {
@@ -72,8 +142,7 @@ export function TaskDetailPanel({
   const addTag = () => {
     const t = tagInput.trim().toLowerCase().replace(/\s+/g, '-')
     if (t && !tags.includes(t)) {
-      const next = [...tags, t]
-      setTags(next)
+      setTags([...tags, t])
       setIsDirty(true)
     }
     setTagInput('')
@@ -89,7 +158,26 @@ export function TaskDetailPanel({
     onClose()
   }
 
+  const postComment = async () => {
+    const text = commentText.trim()
+    if (!text || isPostingComment) return
+    setIsPostingComment(true)
+    try {
+      const { comment } = await commentsApi.create(task.id, text)
+      setComments((prev) => {
+        if (prev.some((c) => c.id === comment.id)) return prev
+        return [...prev, comment as CommentWithAuthor]
+      })
+      setCommentText('')
+    } catch {
+      // silently fail
+    } finally {
+      setIsPostingComment(false)
+    }
+  }
+
   const currentColumn = columns.find((c) => c.id === task.columnId)
+  const assignee = members.find((m) => m.user?.id === assigneeId)
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -176,6 +264,37 @@ export function TaskDetailPanel({
             </div>
           </div>
 
+          {/* Assignee */}
+          <div>
+            <label className="block text-xs text-text-secondary mb-2 flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5" /> Asignado a
+            </label>
+            <select
+              value={assigneeId}
+              onChange={(e) => {
+                setAssigneeId(e.target.value)
+                markDirty()
+              }}
+              onBlur={handleBlur}
+              className="w-full bg-bg-elevated border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent-indigo transition-colors"
+            >
+              <option value="">Sin asignar</option>
+              {members.map((m) =>
+                m.user ? (
+                  <option key={m.user.id} value={m.user.id}>
+                    {m.user.name} ({m.user.email})
+                  </option>
+                ) : null
+              )}
+            </select>
+            {assignee?.user && (
+              <p className="text-xs text-text-secondary mt-1">
+                Asignado a{' '}
+                <span className="text-text-primary font-medium">{assignee.user.name}</span>
+              </p>
+            )}
+          </div>
+
           {/* Description */}
           <div>
             <label className="block text-xs text-text-secondary mb-2">Descripción</label>
@@ -254,6 +373,74 @@ export function TaskDetailPanel({
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Comments */}
+          <div className="pt-2 border-t border-border-subtle">
+            <p className="text-xs font-medium text-text-secondary mb-3 flex items-center gap-1.5">
+              <MessageCircle className="w-3.5 h-3.5" />
+              Comentarios {comments.length > 0 && `(${comments.length})`}
+            </p>
+
+            <div className="space-y-3 max-h-48 overflow-y-auto mb-3">
+              {comments.length === 0 && (
+                <p className="text-xs text-text-secondary/50 text-center py-2">
+                  Sin comentarios aún
+                </p>
+              )}
+              {comments.map((c) => (
+                <div key={c.id} className="flex gap-2.5">
+                  <div className="w-6 h-6 rounded-full bg-accent-indigo/20 border border-accent-indigo/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-[10px] font-bold text-accent-indigo">
+                      {c.author ? getInitials(c.author.name) : '?'}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 mb-0.5">
+                      <span className="text-xs font-medium text-text-primary">
+                        {c.author?.name ?? 'Desconocido'}
+                      </span>
+                      <span className="text-[10px] text-text-secondary">
+                        {new Date(c.createdAt).toLocaleString('es', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
+                    <p className="text-xs text-text-secondary leading-relaxed break-words">
+                      {c.content}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              <div ref={commentsEndRef} />
+            </div>
+
+            {/* New comment input */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    postComment()
+                  }
+                }}
+                placeholder="Escribe un comentario…"
+                className="flex-1 bg-bg-elevated border border-border-subtle rounded-lg px-3 py-2 text-xs text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:border-accent-indigo transition-colors"
+              />
+              <button
+                onClick={postComment}
+                disabled={isPostingComment || !commentText.trim()}
+                className="p-2 bg-bg-elevated border border-border-subtle rounded-lg text-text-secondary hover:text-accent-indigo hover:border-accent-indigo transition-colors disabled:opacity-40"
+              >
+                <Send className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
           {/* Metadata */}

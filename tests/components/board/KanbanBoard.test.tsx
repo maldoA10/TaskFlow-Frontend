@@ -14,6 +14,8 @@ const mockMoveTask = jest.fn()
 const mockUpdateTask = jest.fn()
 const mockCreateTask = jest.fn()
 const mockDeleteTask = jest.fn()
+const mockApplyRemoteTask = jest.fn()
+const mockApplyRemoteDelete = jest.fn()
 
 jest.mock('@/stores/boardStore', () => ({
   useBoardStore: () => ({
@@ -21,7 +23,14 @@ jest.mock('@/stores/boardStore', () => ({
     updateTask: mockUpdateTask,
     createTask: mockCreateTask,
     deleteTask: mockDeleteTask,
+    applyRemoteTask: mockApplyRemoteTask,
+    applyRemoteDelete: mockApplyRemoteDelete,
   }),
+}))
+
+// Mock de useWebSocket para evitar que acceda a IndexedDB en jsdom
+jest.mock('@/hooks/useWebSocket', () => ({
+  useWebSocket: jest.fn(),
 }))
 
 // Mock de dnd-kit
@@ -123,6 +132,21 @@ jest.mock('@/components/board/CreateTaskModal', () => ({
       </button>
     </div>
   ),
+}))
+
+jest.mock('@/components/board/MembersPanel', () => ({
+  MembersPanel: ({ onClose }: { onClose: () => void }) => (
+    <div data-testid="members-panel">
+      <button onClick={onClose}>Cerrar miembros</button>
+    </div>
+  ),
+}))
+
+jest.mock('@/components/board/FilterPanel', () => ({
+  FilterPanel: () => <div data-testid="filter-panel" />,
+  EMPTY_FILTERS: { priorities: [], assigneeIds: [], tags: [] },
+  hasActiveFilters: jest.fn(() => false),
+  taskPassesFilters: jest.fn(() => true),
 }))
 
 // Fixtures
