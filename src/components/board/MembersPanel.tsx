@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { X, UserPlus, Crown, User } from 'lucide-react'
 import type { BoardMember } from '@/types'
-import { invitationsApi } from '@/lib/api'
+import { invitationsApi, ApiError } from '@/lib/api'
 import { clsx } from 'clsx'
 
 interface MembersPanelProps {
@@ -38,7 +38,14 @@ export function MembersPanel({ boardId, members, onClose }: MembersPanelProps) {
       setMessage({ type: 'ok', text: `Invitación enviada a ${email.trim()}` })
       setEmail('')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error al enviar invitación'
+      let msg = 'Error al enviar invitación'
+      if (err instanceof ApiError) {
+        if (err.code === 'FORBIDDEN') msg = 'Solo el propietario puede invitar miembros'
+        else if (err.code === 'NOT_FOUND') msg = 'No existe ningún usuario con ese email'
+        else msg = err.message
+      } else if (err instanceof Error) {
+        msg = err.message
+      }
       setMessage({ type: 'err', text: msg })
     } finally {
       setIsInviting(false)

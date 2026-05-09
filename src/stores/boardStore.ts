@@ -102,10 +102,20 @@ export const useBoardStore = create<BoardState>((set, get) => ({
   },
 
   deleteBoard: async (id) => {
-    await boardsApi.delete(id)
-    await dbDelete('boards', id)
-    set((s) => ({ boards: s.boards.filter((b) => b.id !== id) }))
-    if (get().activeBoard?.id === id) set({ activeBoard: null })
+    try {
+      await boardsApi.delete(id)
+      await dbDelete('boards', id)
+      set((s) => ({ boards: s.boards.filter((b) => b.id !== id) }))
+      if (get().activeBoard?.id === id) set({ activeBoard: null })
+    } catch (err) {
+      let msg = 'Error al eliminar el tablero'
+      if (err instanceof ApiError) {
+        if (err.code === 'FORBIDDEN') msg = 'No tienes permisos para eliminar este tablero'
+        else msg = err.message
+      }
+      set({ error: msg })
+      throw err
+    }
   },
 
   // Active board
