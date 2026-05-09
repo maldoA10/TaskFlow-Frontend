@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { WS_URL } from '@/lib/constants'
 import { getMeta } from '@/lib/db'
-import type { Task, Comment, BoardMember, User } from '@/types'
+import type { Task, Comment, Attachment, BoardMember, User } from '@/types'
 
 export type WsMessage =
   | { type: 'TASK_CREATED'; payload: Task }
@@ -12,6 +12,8 @@ export type WsMessage =
   | { type: 'TASK_DELETED'; payload: { id: string; boardId: string } }
   | { type: 'COMMENT_ADDED'; payload: Comment & { author: User } }
   | { type: 'MEMBER_JOINED'; payload: { boardId: string; userId: string; name: string } }
+  | { type: 'ATTACHMENT_ADDED'; payload: { taskId: string; attachment: Attachment } }
+  | { type: 'ATTACHMENT_DELETED'; payload: { taskId: string; attachmentId: string } }
 
 type MessageHandler = (msg: WsMessage) => void
 

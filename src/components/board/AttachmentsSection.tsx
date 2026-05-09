@@ -1,7 +1,16 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Image, Camera, Folder, Trash2, X, Loader2, Download, ZoomIn } from 'lucide-react'
+import {
+  Image as ImageIcon,
+  Camera,
+  Folder,
+  Trash2,
+  X,
+  Loader2,
+  Download,
+  ZoomIn,
+} from 'lucide-react'
 import type { Attachment } from '@/types'
 import { attachmentsApi, ApiError } from '@/lib/api'
 import { dbPut, dbDelete, dbGetByIndex, enqueueSyncOp, getMeta } from '@/lib/db'
@@ -250,7 +259,7 @@ export function AttachmentsSection({
     <div className="pt-2 border-t border-border-subtle">
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs font-medium text-text-secondary flex items-center gap-1.5">
-          <Image className="w-3.5 h-3.5" />
+          <ImageIcon className="w-3.5 h-3.5" />
           Imágenes {attachments.length > 0 && `(${attachments.length})`}
         </p>
 
