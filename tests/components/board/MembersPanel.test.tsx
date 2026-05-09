@@ -66,8 +66,6 @@ describe('MembersPanel — renderizado', () => {
   })
 
   it('no muestra la insignia "Owner" para miembros normales', () => {
-    // Solo un owner, Carlos es MEMBER
-    const owners = screen.queryAllByText('Owner')
     // No comprobamos aquí porque el render no ha ocurrido todavía
     renderPanel()
     expect(screen.getAllByText('Owner')).toHaveLength(1)

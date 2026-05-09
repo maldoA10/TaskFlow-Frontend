@@ -4,7 +4,6 @@
  * Se mockea getDB para devolver datos controlados sin IndexedDB real.
  */
 
-const mockGetAll = jest.fn()
 const mockGetDB = jest.fn()
 
 jest.mock('@/lib/db', () => ({
