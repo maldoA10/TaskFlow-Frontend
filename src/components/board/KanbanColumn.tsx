@@ -53,10 +53,10 @@ export function KanbanColumn({ column, onTaskClick, onAddTask, dimmedTaskIds }: 
 
         <button
           onClick={() => onAddTask(column.id)}
-          className="w-6 h-6 rounded flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-elevated transition-colors"
+          className="w-8 h-8 rounded flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-elevated transition-colors"
           title="Agregar tarea"
         >
-          <Plus className="w-3.5 h-3.5" />
+          <Plus className="w-4 h-4" />
         </button>
       </div>
 
@@ -85,6 +85,20 @@ export function KanbanColumn({ column, onTaskClick, onAddTask, dimmedTaskIds }: 
             <p className="text-xs text-text-secondary/40 italic">Sin tareas</p>
           </div>
         )}
+
+        {/* Full-width add button at the bottom — large touch target for mobile */}
+        <button
+          onClick={() => onAddTask(column.id)}
+          className={clsx(
+            'w-full flex items-center justify-center gap-1.5 py-2 rounded-lg mt-1',
+            'text-xs text-text-secondary/50 hover:text-text-secondary',
+            'border border-dashed border-border-subtle hover:border-border-active',
+            'transition-colors'
+          )}
+        >
+          <Plus className="w-3 h-3" />
+          Nueva tarea
+        </button>
       </div>
     </div>
   )

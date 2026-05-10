@@ -14,7 +14,6 @@ import {
 import type { Attachment } from '@/types'
 import { attachmentsApi, ApiError } from '@/lib/api'
 import { dbPut, dbDelete, dbGetByIndex, enqueueSyncOp, getMeta } from '@/lib/db'
-import { useImageCapture } from '@/hooks/useImageCapture'
 import { clsx } from 'clsx'
 
 // Fetches an image URL using the auth token and renders it as a blob URL
@@ -79,11 +78,216 @@ export function AttachmentsSection({
   // Track IDs we uploaded ourselves so the WS echo doesn't duplicate them
   const localUploadedIds = useRef<Set<string>>(new Set())
 
-  const { openGallery, openCamera, isMobile, isCameraSupported, isCapturing } = useImageCapture({
-    maxWidth: 1920,
-    maxHeight: 1080,
-    quality: 0.85,
-  })
+  // Camera modal state
+  const [showCameraModal, setShowCameraModal] = useState(false)
+  const [cameraError, setCameraError] = useState<string | null>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Detect mobile on mount
+  useEffect(() => {
+    setIsMobile(
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    )
+  }, [])
+
+  // Open gallery (file picker)
+  const openGallery = useCallback((): Promise<{
+    data: string
+    mimeType: string
+    originalName: string
+  } | null> => {
+    return new Promise((resolve) => {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = 'image/*'
+      input.onchange = async () => {
+        const file = input.files?.[0]
+        if (!file) return resolve(null)
+        const result = await processFile(file)
+        resolve(result)
+      }
+      input.click()
+    })
+  }, [])
+
+  // Open camera on mobile (uses input capture)
+  const openCameraMobile = useCallback((): Promise<{
+    data: string
+    mimeType: string
+    originalName: string
+  } | null> => {
+    return new Promise((resolve) => {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = 'image/*'
+      input.capture = 'environment'
+      input.onchange = async () => {
+        const file = input.files?.[0]
+        if (!file) return resolve(null)
+        const result = await processFile(file)
+        resolve(result)
+      }
+      input.click()
+    })
+  }, [])
+
+  // Process file to base64
+  const processFile = async (
+    file: File
+  ): Promise<{ data: string; mimeType: string; originalName: string }> => {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        const maxW = 1920,
+          maxH = 1080
+        let w = img.width,
+          h = img.height
+        if (w > maxW || h > maxH) {
+          const ratio = Math.min(maxW / w, maxH / h)
+          w = Math.round(w * ratio)
+          h = Math.round(h * ratio)
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return reject(new Error('Canvas error'))
+        ctx.drawImage(img, 0, 0, w, h)
+        const mimeType = file.type.startsWith('image/') ? file.type : 'image/jpeg'
+        resolve({ data: canvas.toDataURL(mimeType, 0.85), mimeType, originalName: file.name })
+      }
+      img.onerror = () => reject(new Error('Image load error'))
+      img.src = url
+    })
+  }
+
+  // Upload image helper — defined early so other callbacks can reference it
+  const uploadImage = useCallback(
+    async (result: { data: string; mimeType: string; originalName: string }) => {
+      setIsUploading(true)
+      setError(null)
+      try {
+        const { attachment } = await attachmentsApi.uploadBase64(
+          taskId,
+          result.data,
+          result.mimeType,
+          result.originalName
+        )
+        localUploadedIds.current.add(attachment.id)
+        setAttachments((prev) =>
+          prev.some((a) => a.id === attachment.id) ? prev : [attachment, ...prev]
+        )
+        await dbPut('attachments', attachment)
+      } catch (err) {
+        if (!navigator.onLine || (err instanceof ApiError && err.status === 0)) {
+          const localId = crypto.randomUUID()
+          const localAttachment: Attachment = {
+            id: localId,
+            taskId,
+            filename: localId,
+            originalName: result.originalName,
+            mimeType: result.mimeType,
+            size: Math.round((result.data.length * 3) / 4),
+            uploadedById: '',
+            createdAt: new Date().toISOString(),
+            localData: result.data,
+            pendingSync: true,
+          }
+          await dbPut('attachments', localAttachment)
+          await enqueueSyncOp({
+            entityType: 'attachment',
+            entityId: localId,
+            operation: 'CREATE',
+            payload: {
+              taskId,
+              data: result.data,
+              mimeType: result.mimeType,
+              originalName: result.originalName,
+            },
+            timestamp: Date.now(),
+            status: 'pending',
+            retryCount: 0,
+            version: 1,
+          })
+          setAttachments((prev) => [localAttachment, ...prev])
+        } else {
+          setError('Error al subir imagen')
+        }
+      } finally {
+        setIsUploading(false)
+      }
+    },
+    [taskId]
+  )
+
+  // Open camera on desktop (getUserMedia modal)
+  const openCameraDesktop = useCallback(async () => {
+    setCameraError(null)
+    setShowCameraModal(true)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+      })
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        videoRef.current.play()
+      }
+    } catch {
+      setCameraError('No se pudo acceder a la cámara. Verifica los permisos.')
+    }
+  }, [])
+
+  // Capture from video stream
+  const captureFromVideo = useCallback(async () => {
+    const video = videoRef.current
+    if (!video) return
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(video, 0, 0)
+    const data = canvas.toDataURL('image/jpeg', 0.85)
+    // Stop stream
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+    streamRef.current = null
+    setShowCameraModal(false)
+    // Upload captured image
+    await uploadImage({ data, mimeType: 'image/jpeg', originalName: `foto-${Date.now()}.jpg` })
+  }, [uploadImage])
+
+  // Close camera modal
+  const closeCameraModal = useCallback(() => {
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+    streamRef.current = null
+    setShowCameraModal(false)
+    setCameraError(null)
+  }, [])
+
+  // Handle upload button clicks
+  const handleUpload = useCallback(
+    async (source: 'camera' | 'gallery') => {
+      setError(null)
+      if (source === 'gallery') {
+        const result = await openGallery()
+        if (result) await uploadImage(result)
+      } else {
+        // Camera: mobile uses input capture, desktop uses getUserMedia modal
+        if (isMobile) {
+          const result = await openCameraMobile()
+          if (result) await uploadImage(result)
+        } else {
+          await openCameraDesktop()
+        }
+      }
+    },
+    [isMobile, openGallery, openCameraMobile, openCameraDesktop, uploadImage]
+  )
 
   // Load attachments on mount
   useEffect(() => {
@@ -142,76 +346,6 @@ export function AttachmentsSection({
     }
   }, [deletedAttachmentId, onDeletedAttachmentConsumed])
 
-  const handleUpload = async (source: 'camera' | 'gallery') => {
-    setError(null)
-    const result = source === 'camera' ? await openCamera() : await openGallery()
-
-    if (!result) return
-
-    setIsUploading(true)
-    try {
-      // Extract base64 data without the data URL prefix
-      const base64Data = result.data
-
-      const { attachment } = await attachmentsApi.uploadBase64(
-        taskId,
-        base64Data,
-        result.mimeType,
-        result.originalName
-      )
-
-      // Mark as local upload so the WS echo won't duplicate it
-      localUploadedIds.current.add(attachment.id)
-      setAttachments((prev) => {
-        if (prev.some((a) => a.id === attachment.id)) return prev
-        return [attachment, ...prev]
-      })
-
-      // Save to IDB
-      await dbPut('attachments', attachment)
-    } catch (err) {
-      // If offline, save locally and queue for sync
-      if (!navigator.onLine || (err instanceof ApiError && err.status === 0)) {
-        const localId = crypto.randomUUID()
-        const localAttachment: Attachment = {
-          id: localId,
-          taskId,
-          filename: localId,
-          originalName: result.originalName,
-          mimeType: result.mimeType,
-          size: Math.round((result.data.length * 3) / 4), // Approximate size
-          uploadedById: '',
-          createdAt: new Date().toISOString(),
-          localData: result.data,
-          pendingSync: true,
-        }
-
-        await dbPut('attachments', localAttachment)
-        await enqueueSyncOp({
-          entityType: 'attachment',
-          entityId: localId,
-          operation: 'CREATE',
-          payload: {
-            taskId,
-            data: result.data,
-            mimeType: result.mimeType,
-            originalName: result.originalName,
-          },
-          timestamp: Date.now(),
-          status: 'pending',
-          retryCount: 0,
-          version: 1,
-        })
-
-        setAttachments((prev) => [localAttachment, ...prev])
-      } else {
-        setError('Error al subir imagen')
-      }
-    } finally {
-      setIsUploading(false)
-    }
-  }
-
   const handleDelete = async (attachmentId: string) => {
     setDeletingId(attachmentId)
     try {
@@ -265,25 +399,23 @@ export function AttachmentsSection({
 
         {/* Upload buttons */}
         <div className="flex gap-1.5">
-          {isCameraSupported && (
-            <button
-              onClick={() => handleUpload('camera')}
-              disabled={isUploading || isCapturing}
-              className={clsx(
-                'flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-colors',
-                'bg-bg-elevated border border-border-subtle',
-                'text-text-secondary hover:text-accent-indigo hover:border-accent-indigo/40',
-                'disabled:opacity-50 disabled:cursor-not-allowed'
-              )}
-              title="Tomar foto"
-            >
-              <Camera className="w-3 h-3" />
-              {isMobile ? '' : 'Cámara'}
-            </button>
-          )}
+          <button
+            onClick={() => handleUpload('camera')}
+            disabled={isUploading || showCameraModal}
+            className={clsx(
+              'flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-colors',
+              'bg-bg-elevated border border-border-subtle',
+              'text-text-secondary hover:text-accent-indigo hover:border-accent-indigo/40',
+              'disabled:opacity-50 disabled:cursor-not-allowed'
+            )}
+            title="Tomar foto"
+          >
+            <Camera className="w-3 h-3" />
+            {isMobile ? '' : 'Cámara'}
+          </button>
           <button
             onClick={() => handleUpload('gallery')}
-            disabled={isUploading || isCapturing}
+            disabled={isUploading || showCameraModal}
             className={clsx(
               'flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-colors',
               'bg-bg-elevated border border-border-subtle',
@@ -427,6 +559,55 @@ export function AttachmentsSection({
               alt="Preview"
               className="max-w-full max-h-full object-contain rounded-lg"
             />
+          )}
+        </div>
+      )}
+
+      {/* Camera modal for desktop */}
+      {showCameraModal && (
+        <div className="fixed inset-0 z-[70] bg-black/95 flex flex-col items-center justify-center p-4">
+          <button
+            onClick={closeCameraModal}
+            className="absolute top-4 right-4 p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
+          >
+            <X className="w-6 h-6 text-white" />
+          </button>
+
+          {cameraError ? (
+            <div className="text-center">
+              <p className="text-accent-rose mb-4">{cameraError}</p>
+              <button
+                onClick={closeCameraModal}
+                className="px-4 py-2 bg-bg-elevated border border-border-subtle rounded-lg text-text-primary hover:bg-bg-secondary"
+              >
+                Cerrar
+              </button>
+            </div>
+          ) : (
+            <>
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="max-w-full max-h-[70vh] rounded-lg bg-black"
+              />
+              <div className="flex gap-4 mt-6">
+                <button
+                  onClick={closeCameraModal}
+                  className="px-6 py-3 bg-bg-elevated border border-border-subtle rounded-lg text-text-secondary hover:text-text-primary"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={captureFromVideo}
+                  className="px-6 py-3 bg-accent-indigo hover:bg-accent-indigo/90 rounded-lg text-white font-medium flex items-center gap-2"
+                >
+                  <Camera className="w-5 h-5" />
+                  Capturar
+                </button>
+              </div>
+            </>
           )}
         </div>
       )}

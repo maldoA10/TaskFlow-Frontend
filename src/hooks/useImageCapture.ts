@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 interface CaptureOptions {
   maxWidth?: number
@@ -20,8 +20,21 @@ export function useImageCapture(options: CaptureOptions = {}) {
 
   const [isCapturing, setIsCapturing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Initialised as false to match SSR output — useEffect corrects on the client
+  const [isMobile, setIsMobile] = useState(false)
+  const [isCameraSupported, setIsCameraSupported] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+
+  useEffect(() => {
+    const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent
+    )
+    setIsMobile(mobile)
+    // Mobile: <input capture="environment"> opens camera natively — no HTTPS needed
+    // Desktop: requires getUserMedia (works on localhost HTTP, blocked on LAN HTTP)
+    setIsCameraSupported(mobile || !!navigator.mediaDevices?.getUserMedia)
+  }, [])
 
   // Resize image if needed
   const resizeImage = useCallback(
@@ -209,15 +222,6 @@ export function useImageCapture(options: CaptureOptions = {}) {
     }
     setIsCapturing(false)
   }, [])
-
-  // Check if camera is supported
-  const isCameraSupported =
-    typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia
-
-  // Check if we're on mobile (use file input with capture)
-  const isMobile =
-    typeof navigator !== 'undefined' &&
-    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
   return {
     isCapturing,

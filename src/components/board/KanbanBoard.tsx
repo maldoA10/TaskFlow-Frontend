@@ -9,6 +9,7 @@ import {
   DragOverlay,
   DragStartEvent,
   PointerSensor,
+  TouchSensor,
   closestCorners,
   useSensor,
   useSensors,
@@ -56,7 +57,12 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
   >(null)
   const [deletedAttachmentId, setDeletedAttachmentId] = useState<string | null>(null)
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+  const sensors = useSensors(
+    // Mouse/trackpad: activate drag after 5px of movement
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    // Touch: require a 250ms hold before drag starts so quick taps still fire as clicks
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
+  )
 
   // Track columns locally during drag to enable visual reordering
   const [localColumns, setLocalColumns] = useState<null | (Column & { tasks: Task[] })[]>(null)
