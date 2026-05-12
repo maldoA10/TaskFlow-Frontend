@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Loader2, LayoutGrid, Trash2, X } from 'lucide-react'
+import { Plus, Loader2, LayoutGrid, Trash2, X, AlertTriangle } from 'lucide-react'
 import { useBoardStore } from '@/stores/boardStore'
 import { CreateBoardModal } from '@/components/board/CreateBoardModal'
 import type { Board } from '@/types'
@@ -15,9 +15,22 @@ function BoardCard({
 }: {
   board: Board
   onOpen: () => void
-  onDelete: () => void
+  onDelete: () => Promise<void>
 }) {
   const [showDelete, setShowDelete] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  const handleDeleteClick = async () => {
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      await onDelete()
+    } catch {
+      setDeleteError('Solo el propietario puede eliminar este tablero')
+      setIsDeleting(false)
+    }
+  }
 
   return (
     <div
@@ -74,26 +87,45 @@ function BoardCard({
           className="absolute inset-0 bg-bg-secondary/95 backdrop-blur-sm flex flex-col items-center justify-center gap-3 p-4"
           onClick={(e) => e.stopPropagation()}
         >
-          <p className="text-sm text-text-primary font-medium text-center">
-            ¿Eliminar &ldquo;{board.name}&rdquo;?
-          </p>
-          <p className="text-xs text-text-secondary text-center">
-            Esta acción no se puede deshacer
-          </p>
-          <div className="flex gap-2 w-full">
-            <button
-              onClick={() => setShowDelete(false)}
-              className="flex-1 py-1.5 rounded-lg text-xs border border-border-subtle text-text-secondary hover:text-text-primary transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={onDelete}
-              className="flex-1 py-1.5 rounded-lg text-xs bg-accent-rose text-white hover:bg-accent-rose/90 transition-colors"
-            >
-              Eliminar
-            </button>
-          </div>
+          {deleteError ? (
+            <>
+              <AlertTriangle className="w-5 h-5 text-accent-rose" />
+              <p className="text-xs text-accent-rose text-center">{deleteError}</p>
+              <button
+                onClick={() => {
+                  setShowDelete(false)
+                  setDeleteError(null)
+                }}
+                className="py-1.5 px-4 rounded-lg text-xs border border-border-subtle text-text-secondary hover:text-text-primary transition-colors"
+              >
+                Cerrar
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-text-primary font-medium text-center">
+                ¿Eliminar &ldquo;{board.name}&rdquo;?
+              </p>
+              <p className="text-xs text-text-secondary text-center">
+                Esta acción no se puede deshacer
+              </p>
+              <div className="flex gap-2 w-full">
+                <button
+                  onClick={() => setShowDelete(false)}
+                  className="flex-1 py-1.5 rounded-lg text-xs border border-border-subtle text-text-secondary hover:text-text-primary transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDeleteClick}
+                  disabled={isDeleting}
+                  className="flex-1 py-1.5 rounded-lg text-xs bg-accent-rose text-white hover:bg-accent-rose/90 transition-colors disabled:opacity-50"
+                >
+                  {isDeleting ? '…' : 'Eliminar'}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -110,13 +142,7 @@ export default function BoardsPage() {
     fetchBoards()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleDeleteBoard = async (id: string) => {
-    try {
-      await deleteBoard(id)
-    } catch {
-      // Error is already set in the store
-    }
-  }
+  const handleDeleteBoard = (id: string) => deleteBoard(id)
 
   return (
     <div className="p-6 max-w-6xl mx-auto">

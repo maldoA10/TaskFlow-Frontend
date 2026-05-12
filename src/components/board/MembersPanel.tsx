@@ -42,9 +42,8 @@ export function MembersPanel({ boardId, members, onClose }: MembersPanelProps) {
       if (err instanceof ApiError) {
         if (err.code === 'FORBIDDEN') msg = 'Solo el propietario puede invitar miembros'
         else if (err.code === 'NOT_FOUND') msg = 'No existe ningún usuario con ese email'
-        else msg = err.message
-      } else if (err instanceof Error) {
-        msg = err.message
+        else if (err.code === 'CONFLICT') msg = err.message
+        else msg = 'Error al enviar la invitación. Inténtalo de nuevo'
       }
       setMessage({ type: 'err', text: msg })
     } finally {

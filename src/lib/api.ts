@@ -1,5 +1,5 @@
 import { API_URL } from './constants'
-import { getMeta } from './db'
+import { getMeta, setMeta, deleteMeta } from './db'
 
 async function getAccessToken(): Promise<string | null> {
   try {
@@ -7,6 +7,45 @@ async function getAccessToken(): Promise<string | null> {
   } catch {
     return null
   }
+}
+
+// Prevents multiple simultaneous refresh calls
+let refreshPromise: Promise<string | null> | null = null
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise
+
+  refreshPromise = (async () => {
+    try {
+      const refreshToken = await getMeta<string>('refreshToken')
+      if (!refreshToken) return null
+
+      const res = await fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      })
+
+      if (!res.ok) {
+        // Refresh token expired — clear session
+        await deleteMeta('accessToken')
+        await deleteMeta('refreshToken')
+        await deleteMeta('user')
+        return null
+      }
+
+      const data = (await res.json()) as { accessToken: string; refreshToken: string }
+      await setMeta('accessToken', data.accessToken)
+      await setMeta('refreshToken', data.refreshToken)
+      return data.accessToken
+    } catch {
+      return null
+    } finally {
+      refreshPromise = null
+    }
+  })()
+
+  return refreshPromise
 }
 
 interface FetchOptions extends RequestInit {
@@ -30,6 +69,36 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
     ...fetchOptions,
     headers,
   })
+
+  // On 401, attempt a silent token refresh and retry once (skip auth endpoints to avoid loops)
+  if (res.status === 401 && auth && !path.startsWith('/auth/')) {
+    const newToken = await refreshAccessToken()
+    if (newToken) {
+      const retryHeaders = { ...headers, Authorization: `Bearer ${newToken}` }
+      const retryRes = await fetch(`${API_URL}${path}`, { ...fetchOptions, headers: retryHeaders })
+
+      if (!retryRes.ok) {
+        const err = await retryRes.json().catch(() => ({ error: { message: 'Error de red' } }))
+        throw new ApiError(
+          err.error?.code ?? 'FETCH_ERROR',
+          err.error?.message ?? 'Error desconocido',
+          retryRes.status
+        )
+      }
+      if (retryRes.status === 204 || retryRes.headers.get('content-length') === '0')
+        return undefined as T
+      const retryText = await retryRes.text()
+      if (!retryText) return undefined as T
+      return JSON.parse(retryText) as T
+    }
+    // Refresh failed — throw the original 401
+    const error = await res.json().catch(() => ({ error: { message: 'Sesión expirada' } }))
+    throw new ApiError(
+      error.error?.code ?? 'UNAUTHORIZED',
+      error.error?.message ?? 'Sesión expirada',
+      401
+    )
+  }
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: { message: 'Error de red' } }))

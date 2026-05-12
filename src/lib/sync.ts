@@ -1,4 +1,12 @@
-import { getPendingSyncOps, updateSyncOpStatus, getMeta, setMeta, dbPut, clearStaleOps } from './db'
+import {
+  getPendingSyncOps,
+  updateSyncOpStatus,
+  getMeta,
+  setMeta,
+  dbPut,
+  dbDelete,
+  clearStaleOps,
+} from './db'
 import { apiFetch } from './api'
 import type { Board, Column, Task } from '@/types'
 
@@ -95,7 +103,16 @@ export async function processSyncQueue(): Promise<void> {
 
       if (res.status === 'applied' || res.status === 'skipped') {
         await updateSyncOpStatus(op.id!, 'completed')
-        if (res.status === 'applied') appliedCount++
+        if (res.status === 'applied') {
+          appliedCount++
+          // For attachment CREATE: replace the local pending entry in IDB with the
+          // clean server version (same UUID now). This removes pendingSync/localData
+          // so the merge in AttachmentsSection doesn't show the spinner after sync.
+          if (op.entityType === 'attachment' && op.operation === 'CREATE' && res.serverData) {
+            await dbDelete('attachments', op.entityId)
+            await dbPut('attachments', res.serverData)
+          }
+        }
       } else if (res.status === 'conflict') {
         await updateSyncOpStatus(op.id!, 'failed')
         conflicts.push({
