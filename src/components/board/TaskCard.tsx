@@ -54,6 +54,9 @@ export function TaskCard({ task, onClick, isDragging, dimmed }: TaskCardProps) {
       {...attributes}
       {...listeners}
       onClick={() => onClick(task)}
+      role="article"
+      aria-label={`Tarea: ${task.title}. Prioridad ${PRIORITY_LABEL[task.priority]}${task.dueDate ? `. Vence ${new Date(task.dueDate).toLocaleDateString('es')}` : ''}`}
+      aria-roledescription="tarjeta de tarea arrastrable"
       className={clsx(
         'group relative bg-bg-secondary border border-border-subtle rounded-lg p-3 cursor-pointer',
         'hover:border-accent-indigo/40 hover:bg-bg-elevated transition-all duration-150',
@@ -65,6 +68,7 @@ export function TaskCard({ task, onClick, isDragging, dimmed }: TaskCardProps) {
     >
       {/* Priority bar */}
       <div
+        aria-hidden="true"
         className={clsx(
           'absolute left-0 top-2 bottom-2 w-0.5 rounded-full',
           PRIORITY_COLORS[task.priority]

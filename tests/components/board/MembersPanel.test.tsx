@@ -6,12 +6,15 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MembersPanel } from '@/components/board/MembersPanel'
+// Importamos ApiError para poder usarlo en los mocks de error
+import { ApiError } from '@/lib/api'
 import type { BoardMember } from '@/types'
 
 // Mock de invitationsApi
 const mockInvite = jest.fn()
 
 jest.mock('@/lib/api', () => {
+  // Definimos la clase dentro del mock para que coincida con la implementación
   class ApiError extends Error {
     code: string
     status: number
@@ -54,7 +57,7 @@ beforeEach(() => {
   mockInvite.mockResolvedValue(undefined)
 })
 
-// Renderizado
+// --- Renderizado ---
 
 describe('MembersPanel — renderizado', () => {
   it('muestra el título "Miembros del tablero"', () => {
@@ -80,7 +83,6 @@ describe('MembersPanel — renderizado', () => {
   })
 
   it('no muestra la insignia "Owner" para miembros normales', () => {
-    // No comprobamos aquí porque el render no ha ocurrido todavía
     renderPanel()
     expect(screen.getAllByText('Owner')).toHaveLength(1)
   })
@@ -97,12 +99,12 @@ describe('MembersPanel — renderizado', () => {
 
   it('muestra las iniciales del miembro como avatar', () => {
     renderPanel()
-    expect(screen.getByText('AG')).toBeInTheDocument() // Ana García
-    expect(screen.getByText('CL')).toBeInTheDocument() // Carlos López
+    expect(screen.getByText('AG')).toBeInTheDocument()
+    expect(screen.getByText('CL')).toBeInTheDocument()
   })
 })
 
-// Invitación exitosa
+// --- Invitación exitosa ---
 
 describe('MembersPanel — invitar', () => {
   it('habilita el botón Invitar cuando hay email', async () => {
@@ -151,11 +153,14 @@ describe('MembersPanel — invitar', () => {
   })
 })
 
-// Invitación fallida
+// --- Invitación fallida ---
 
 describe('MembersPanel — error al invitar', () => {
-  it('muestra mensaje de error si la API falla', async () => {
-    mockInvite.mockRejectedValueOnce(new Error('Email ya registrado'))
+  it('muestra mensaje de error si la API falla con CONFLICT', async () => {
+    // IMPORTANTE: Instanciamos el ApiError mockeado con el código CONFLICT
+    const conflictError = new ApiError('CONFLICT', 'Email ya registrado', 409)
+    mockInvite.mockRejectedValueOnce(conflictError)
+    
     renderPanel()
     await userEvent.type(screen.getByPlaceholderText('email@ejemplo.com'), 'existente@test.com')
     await userEvent.click(screen.getByRole('button', { name: 'Invitar' }))
@@ -165,8 +170,8 @@ describe('MembersPanel — error al invitar', () => {
     })
   })
 
-  it('muestra mensaje genérico si el error no tiene mensaje', async () => {
-    mockInvite.mockRejectedValueOnce('error sin mensaje')
+  it('muestra mensaje genérico si el error no es una instancia de ApiError', async () => {
+    mockInvite.mockRejectedValueOnce(new Error('Error desconocido'))
     renderPanel()
     await userEvent.type(screen.getByPlaceholderText('email@ejemplo.com'), 'test@test.com')
     await userEvent.click(screen.getByRole('button', { name: 'Invitar' }))
@@ -177,20 +182,19 @@ describe('MembersPanel — error al invitar', () => {
   })
 })
 
-// Cierre
+// --- Cierre ---
 
 describe('MembersPanel — cierre', () => {
   it('llama a onClose al hacer click en el botón X', async () => {
     renderPanel()
-    const xButtons = screen.getAllByRole('button').filter(
-      (b) => b.querySelector('svg') && !b.textContent?.trim()
-    )
-    await userEvent.click(xButtons[0])
+    const xButton = screen.getByRole('button', { name: '' }) // El botón X no tiene texto
+    await userEvent.click(xButton)
     expect(mockOnClose).toHaveBeenCalled()
   })
 
   it('llama a onClose al hacer click en el backdrop', async () => {
     renderPanel()
+    // Buscamos por la clase del backdrop (el div con onClick)
     const backdrop = document.querySelector('.bg-black\\/40') as HTMLElement
     await userEvent.click(backdrop)
     expect(mockOnClose).toHaveBeenCalled()

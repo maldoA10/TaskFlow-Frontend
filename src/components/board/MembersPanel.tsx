@@ -42,9 +42,8 @@ export function MembersPanel({ boardId, members, onClose }: MembersPanelProps) {
       if (err instanceof ApiError) {
         if (err.code === 'FORBIDDEN') msg = 'Solo el propietario puede invitar miembros'
         else if (err.code === 'NOT_FOUND') msg = 'No existe ningún usuario con ese email'
-        else msg = err.message
-      } else if (err instanceof Error) {
-        msg = err.message
+        else if (err.code === 'CONFLICT') msg = err.message
+        else msg = 'Error al enviar la invitación. Inténtalo de nuevo'
       }
       setMessage({ type: 'err', text: msg })
     } finally {
@@ -78,6 +77,7 @@ export function MembersPanel({ boardId, members, onClose }: MembersPanelProps) {
               {/* Avatar */}
               <div className="w-8 h-8 rounded-full bg-accent-indigo/20 border border-accent-indigo/30 flex items-center justify-center flex-shrink-0">
                 {m.user?.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={m.user.avatarUrl}
                     alt={m.user.name}

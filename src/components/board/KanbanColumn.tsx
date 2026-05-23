@@ -34,7 +34,11 @@ export function KanbanColumn({ column, onTaskClick, onAddTask, dimmedTaskIds }: 
   const dot = COLUMN_DOT[column.name] ?? 'bg-border-active'
 
   return (
-    <div className="flex flex-col w-72 flex-shrink-0">
+    <div
+      className="flex flex-col w-[calc(100vw-3rem)] sm:w-72 flex-shrink-0 snap-start"
+      role="region"
+      aria-label={`${column.name}: ${column.tasks.length} ${column.tasks.length === 1 ? 'tarea' : 'tareas'}`}
+    >
       {/* Column header */}
       <div
         className={clsx(
@@ -53,10 +57,10 @@ export function KanbanColumn({ column, onTaskClick, onAddTask, dimmedTaskIds }: 
 
         <button
           onClick={() => onAddTask(column.id)}
+          aria-label={`Agregar tarea en ${column.name}`}
           className="w-8 h-8 rounded flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-elevated transition-colors"
-          title="Agregar tarea"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4" aria-hidden="true" />
         </button>
       </div>
 

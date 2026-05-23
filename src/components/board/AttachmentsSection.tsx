@@ -168,6 +168,14 @@ export function AttachmentsSection({
   // Upload image helper — defined early so other callbacks can reference it
   const uploadImage = useCallback(
     async (result: { data: string; mimeType: string; originalName: string }) => {
+      // Reject before sending if the base64 payload exceeds ~10 MB
+      const approxBytes = Math.round((result.data.length * 3) / 4)
+      const MAX_BYTES = 10 * 1024 * 1024
+      if (approxBytes > MAX_BYTES) {
+        setError('La imagen supera el límite de 10 MB. Elige una más pequeña.')
+        return
+      }
+
       setIsUploading(true)
       setError(null)
       try {
@@ -183,7 +191,11 @@ export function AttachmentsSection({
         )
         await dbPut('attachments', attachment)
       } catch (err) {
-        if (!navigator.onLine || (err instanceof ApiError && err.status === 0)) {
+        if (
+          !navigator.onLine ||
+          err instanceof TypeError ||
+          (err instanceof ApiError && err.status === 0)
+        ) {
           const localId = crypto.randomUUID()
           const localAttachment: Attachment = {
             id: localId,
@@ -214,8 +226,10 @@ export function AttachmentsSection({
             version: 1,
           })
           setAttachments((prev) => [localAttachment, ...prev])
+        } else if (err instanceof ApiError && err.status === 422) {
+          setError('Formato no permitido. Usa JPG, PNG, GIF o WebP.')
         } else {
-          setError('Error al subir imagen')
+          setError('Error al subir imagen. Formatos: JPG, PNG, GIF, WebP · Máx 10 MB.')
         }
       } finally {
         setIsUploading(false)
@@ -294,17 +308,29 @@ export function AttachmentsSection({
     const loadAttachments = async () => {
       setIsLoading(true)
       try {
-        // Try to load from server first
+        // Load from server
         const { attachments: serverAttachments } = await attachmentsApi.list(taskId)
-        setAttachments(serverAttachments)
 
-        // Save to IDB for offline access
+        // Save server attachments to IDB
         for (const att of serverAttachments) {
           await dbPut('attachments', att)
         }
+
+        // Merge any locally-pending attachments that haven't synced yet
+        // so they remain visible even after closing/reopening the panel
+        const localAll = await dbGetByIndex<Attachment>('attachments', 'taskId', taskId)
+        const pendingLocal = localAll.filter(
+          (a) => a.pendingSync && !serverAttachments.some((s) => s.id === a.id)
+        )
+
+        setAttachments([...pendingLocal, ...serverAttachments])
       } catch (err) {
-        // If offline, load from IDB
-        if (!navigator.onLine || (err instanceof ApiError && err.status === 0)) {
+        // If offline or network error, load everything from IDB
+        if (
+          !navigator.onLine ||
+          err instanceof TypeError ||
+          (err instanceof ApiError && err.status === 0)
+        ) {
           try {
             const localAttachments = await dbGetByIndex<Attachment>('attachments', 'taskId', taskId)
             setAttachments(localAttachments)
@@ -322,16 +348,20 @@ export function AttachmentsSection({
     loadAttachments()
   }, [taskId])
 
-  // Handle WebSocket attachment added (skip echoes of our own uploads)
+  // Handle WebSocket attachment added (skip echoes of our own direct uploads)
   useEffect(() => {
     if (pendingAttachment && pendingAttachment.taskId === taskId) {
       setAttachments((prev) => {
-        // If we uploaded it ourselves, the item is already in state — skip
+        // Echo of a direct upload we did ourselves — already in state, skip
         if (localUploadedIds.current.has(pendingAttachment.id)) {
           localUploadedIds.current.delete(pendingAttachment.id)
           return prev
         }
-        if (prev.some((a) => a.id === pendingAttachment.id)) return prev
+        // Same ID already in state (e.g. synced offline attachment with preserved UUID):
+        // replace it so the pendingSync spinner is removed with the clean server version
+        if (prev.some((a) => a.id === pendingAttachment.id)) {
+          return prev.map((a) => (a.id === pendingAttachment.id ? pendingAttachment : a))
+        }
         return [pendingAttachment, ...prev]
       })
       onPendingAttachmentConsumed()
@@ -383,6 +413,36 @@ export function AttachmentsSection({
     [taskId]
   )
 
+  const handleDownload = useCallback(
+    async (attachment: Attachment) => {
+      if (attachment.localData) {
+        const link = document.createElement('a')
+        link.href = attachment.localData
+        link.download = attachment.originalName
+        link.click()
+        return
+      }
+      try {
+        const token = await getMeta<string>('accessToken')
+        const url = attachmentsApi.getUrl(taskId, attachment.id)
+        const res = await fetch(url, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        if (!res.ok) return
+        const blob = await res.blob()
+        const objectUrl = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = objectUrl
+        link.download = attachment.originalName
+        link.click()
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000)
+      } catch {
+        // silently ignore
+      }
+    },
+    [taskId]
+  )
+
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -391,7 +451,7 @@ export function AttachmentsSection({
 
   return (
     <div className="pt-2 border-t border-border-subtle">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-1">
         <p className="text-xs font-medium text-text-secondary flex items-center gap-1.5">
           <ImageIcon className="w-3.5 h-3.5" />
           Imágenes {attachments.length > 0 && `(${attachments.length})`}
@@ -429,6 +489,8 @@ export function AttachmentsSection({
           </button>
         </div>
       </div>
+
+      <p className="text-[10px] text-text-secondary/40 mb-3">JPG, PNG, GIF, WebP · máx 10 MB</p>
 
       {/* Error message */}
       {error && (
@@ -497,18 +559,13 @@ export function AttachmentsSection({
                   <ZoomIn className="w-3.5 h-3.5 text-white" />
                 </button>
 
-                {attachment.localData ? null : (
-                  <a
-                    href={getPreviewUrl(attachment)}
-                    download={attachment.originalName}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-1.5 bg-white/20 rounded-full hover:bg-white/30 transition-colors"
-                    title="Descargar"
-                  >
-                    <Download className="w-3.5 h-3.5 text-white" />
-                  </a>
-                )}
+                <button
+                  onClick={() => handleDownload(attachment)}
+                  className="p-1.5 bg-white/20 rounded-full hover:bg-white/30 transition-colors"
+                  title="Descargar"
+                >
+                  <Download className="w-3.5 h-3.5 text-white" />
+                </button>
 
                 <button
                   onClick={() => handleDelete(attachment.id)}

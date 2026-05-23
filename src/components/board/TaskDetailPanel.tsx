@@ -193,8 +193,11 @@ export function TaskDetailPanel({
       })
       setCommentText('')
     } catch (err) {
-      // If offline, save optimistically
-      if (!navigator.onLine || (err instanceof ApiError && err.status === 0)) {
+      if (
+        !navigator.onLine ||
+        err instanceof TypeError ||
+        (err instanceof ApiError && err.status === 0)
+      ) {
         const localId = crypto.randomUUID()
         const optimisticComment: CommentWithAuthor = {
           id: localId,
