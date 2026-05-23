@@ -7,6 +7,7 @@ import type {
   Column,
   Task,
   Comment,
+  Attachment,
   SyncOperation,
   AppMeta,
 } from '@/types'
@@ -22,6 +23,7 @@ interface TaskFlowDB extends DBSchema {
     indexes: { columnId: string; boardId: string; assigneeId: string }
   }
   comments: { key: string; value: Comment; indexes: { taskId: string } }
+  attachments: { key: string; value: Attachment; indexes: { taskId: string } }
   syncQueue: {
     key: number
     value: SyncOperation
@@ -71,6 +73,11 @@ export function getDB(): Promise<IDBPDatabase<TaskFlowDB>> {
           const comments = db.createObjectStore('comments', { keyPath: 'id' })
           comments.createIndex('taskId', 'taskId')
         }
+        // attachments
+        if (!db.objectStoreNames.contains('attachments')) {
+          const attachments = db.createObjectStore('attachments', { keyPath: 'id' })
+          attachments.createIndex('taskId', 'taskId')
+        }
         // syncQueue
         if (!db.objectStoreNames.contains('syncQueue')) {
           const sq = db.createObjectStore('syncQueue', {
@@ -110,7 +117,14 @@ export async function deleteMeta(key: string): Promise<void> {
 
 // Generic CRUD helpers
 
-type StoreName = 'users' | 'boards' | 'boardMembers' | 'columns' | 'tasks' | 'comments'
+type StoreName =
+  | 'users'
+  | 'boards'
+  | 'boardMembers'
+  | 'columns'
+  | 'tasks'
+  | 'comments'
+  | 'attachments'
 
 export async function dbGetAll<T>(store: StoreName): Promise<T[]> {
   const db = await getDB()

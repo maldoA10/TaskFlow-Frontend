@@ -150,12 +150,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {user?.name}
           </span>
           <button
-            onClick={() =>
-              unregisterPush()
-                .catch(() => {})
-                .then(() => logout())
-                .then(() => router.push('/login'))
-            }
+            onClick={async () => {
+              try {
+                await unregisterPush()
+              } catch {
+                /* ignore */
+              }
+              await logout()
+              router.push('/login')
+            }}
             className="w-7 h-7 rounded flex items-center justify-center text-text-secondary hover:text-accent-rose hover:bg-accent-rose/10 transition-colors"
             title="Cerrar sesión"
           >

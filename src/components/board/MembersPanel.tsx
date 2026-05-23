@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { X, UserPlus, Crown, User } from 'lucide-react'
 import type { BoardMember } from '@/types'
-import { invitationsApi } from '@/lib/api'
+import { invitationsApi, ApiError } from '@/lib/api'
 import { clsx } from 'clsx'
 
 interface MembersPanelProps {
@@ -38,7 +38,13 @@ export function MembersPanel({ boardId, members, onClose }: MembersPanelProps) {
       setMessage({ type: 'ok', text: `Invitación enviada a ${email.trim()}` })
       setEmail('')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error al enviar invitación'
+      let msg = 'Error al enviar invitación'
+      if (err instanceof ApiError) {
+        if (err.code === 'FORBIDDEN') msg = 'Solo el propietario puede invitar miembros'
+        else if (err.code === 'NOT_FOUND') msg = 'No existe ningún usuario con ese email'
+        else if (err.code === 'CONFLICT') msg = err.message
+        else msg = 'Error al enviar la invitación. Inténtalo de nuevo'
+      }
       setMessage({ type: 'err', text: msg })
     } finally {
       setIsInviting(false)
@@ -71,6 +77,7 @@ export function MembersPanel({ boardId, members, onClose }: MembersPanelProps) {
               {/* Avatar */}
               <div className="w-8 h-8 rounded-full bg-accent-indigo/20 border border-accent-indigo/30 flex items-center justify-center flex-shrink-0">
                 {m.user?.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={m.user.avatarUrl}
                     alt={m.user.name}

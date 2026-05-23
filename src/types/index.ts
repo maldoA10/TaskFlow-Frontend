@@ -4,7 +4,7 @@ export type Role = 'OWNER' | 'MEMBER'
 export type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
 export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED'
 export type SyncOperationType = 'CREATE' | 'UPDATE' | 'DELETE' | 'MOVE'
-export type SyncEntityType = 'task' | 'column' | 'board' | 'comment'
+export type SyncEntityType = 'task' | 'column' | 'board' | 'comment' | 'attachment'
 export type SyncStatus = 'pending' | 'in-progress' | 'failed' | 'completed'
 
 // Domain Types
@@ -69,6 +69,20 @@ export interface Comment {
   content: string
   createdAt: string
   author?: User
+}
+
+export interface Attachment {
+  id: string
+  taskId: string
+  filename: string
+  originalName: string
+  mimeType: string
+  size: number
+  uploadedById: string
+  createdAt: string
+  // For offline support - base64 data
+  localData?: string
+  pendingSync?: boolean
 }
 
 export interface Invitation {

@@ -12,10 +12,15 @@ import {
   MessageCircle,
   User,
   Send,
+  Cloud,
+  CloudOff,
 } from 'lucide-react'
-import type { Task, Column, Comment, BoardMember } from '@/types'
-import { commentsApi } from '@/lib/api'
+import type { Task, Column, Comment, BoardMember, Attachment } from '@/types'
+import { commentsApi, ApiError } from '@/lib/api'
+import { dbPut, enqueueSyncOp } from '@/lib/db'
+import { useAuthStore } from '@/stores/authStore'
 import { clsx } from 'clsx'
+import { AttachmentsSection } from './AttachmentsSection'
 
 const PRIORITIES: { value: Task['priority']; label: string; color: string; bg: string }[] = [
   { value: 'LOW', label: 'Baja', color: 'text-text-secondary', bg: 'bg-border-subtle' },
@@ -39,6 +44,10 @@ interface TaskDetailPanelProps {
   onDelete: (taskId: string) => Promise<void>
   pendingComment: CommentWithAuthor | null
   onPendingCommentConsumed: () => void
+  pendingAttachment?: (Attachment & { taskId: string }) | null
+  deletedAttachmentId?: string | null
+  onPendingAttachmentConsumed?: () => void
+  onDeletedAttachmentConsumed?: () => void
 }
 
 function getInitials(name: string) {
@@ -59,6 +68,10 @@ export function TaskDetailPanel({
   onDelete,
   pendingComment,
   onPendingCommentConsumed,
+  pendingAttachment,
+  deletedAttachmentId,
+  onPendingAttachmentConsumed,
+  onDeletedAttachmentConsumed,
 }: TaskDetailPanelProps) {
   const [title, setTitle] = useState(task.title)
   const [description, setDescription] = useState(task.description ?? '')
@@ -76,6 +89,7 @@ export function TaskDetailPanel({
   const [comments, setComments] = useState<CommentWithAuthor[]>([])
   const [commentText, setCommentText] = useState('')
   const [isPostingComment, setIsPostingComment] = useState(false)
+  const [commentError, setCommentError] = useState<string | null>(null)
   const commentsEndRef = useRef<HTMLDivElement>(null)
 
   // Load comments on mount
@@ -162,6 +176,15 @@ export function TaskDetailPanel({
     const text = commentText.trim()
     if (!text || isPostingComment) return
     setIsPostingComment(true)
+    setCommentError(null)
+
+    const currentUser = useAuthStore.getState().user
+    if (!currentUser) {
+      setCommentError('Debes iniciar sesión para comentar')
+      setIsPostingComment(false)
+      return
+    }
+
     try {
       const { comment } = await commentsApi.create(task.id, text)
       setComments((prev) => {
@@ -169,8 +192,48 @@ export function TaskDetailPanel({
         return [...prev, comment as CommentWithAuthor]
       })
       setCommentText('')
-    } catch {
-      // silently fail
+    } catch (err) {
+      if (
+        !navigator.onLine ||
+        err instanceof TypeError ||
+        (err instanceof ApiError && err.status === 0)
+      ) {
+        const localId = crypto.randomUUID()
+        const optimisticComment: CommentWithAuthor = {
+          id: localId,
+          taskId: task.id,
+          authorId: currentUser.id,
+          content: text,
+          createdAt: new Date().toISOString(),
+          author: {
+            id: currentUser.id,
+            name: currentUser.name,
+            email: currentUser.email,
+            avatarUrl: currentUser.avatarUrl,
+            createdAt: currentUser.createdAt,
+            updatedAt: currentUser.updatedAt,
+          },
+        }
+        // Save to IDB
+        await dbPut('comments', optimisticComment)
+        // Enqueue sync operation
+        await enqueueSyncOp({
+          entityType: 'comment',
+          entityId: localId,
+          operation: 'CREATE',
+          payload: { taskId: task.id, content: text },
+          timestamp: Date.now(),
+          status: 'pending',
+          retryCount: 0,
+          version: 1,
+        })
+        // Show optimistically
+        setComments((prev) => [...prev, optimisticComment])
+        setCommentText('')
+      } else {
+        // Online but failed for other reason
+        setCommentError('No se pudo enviar el comentario')
+      }
     } finally {
       setIsPostingComment(false)
     }
@@ -423,7 +486,10 @@ export function TaskDetailPanel({
               <input
                 type="text"
                 value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
+                onChange={(e) => {
+                  setCommentText(e.target.value)
+                  if (commentError) setCommentError(null)
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()
@@ -431,7 +497,12 @@ export function TaskDetailPanel({
                   }
                 }}
                 placeholder="Escribe un comentario…"
-                className="flex-1 bg-bg-elevated border border-border-subtle rounded-lg px-3 py-2 text-xs text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:border-accent-indigo transition-colors"
+                className={clsx(
+                  'flex-1 bg-bg-elevated border rounded-lg px-3 py-2 text-xs text-text-primary placeholder:text-text-secondary/50 focus:outline-none transition-colors',
+                  commentError
+                    ? 'border-accent-rose focus:border-accent-rose'
+                    : 'border-border-subtle focus:border-accent-indigo'
+                )}
               />
               <button
                 onClick={postComment}
@@ -441,7 +512,17 @@ export function TaskDetailPanel({
                 <Send className="w-3.5 h-3.5" />
               </button>
             </div>
+            {commentError && <p className="text-xs text-accent-rose mt-1.5">{commentError}</p>}
           </div>
+
+          {/* Attachments */}
+          <AttachmentsSection
+            taskId={task.id}
+            pendingAttachment={pendingAttachment ?? null}
+            deletedAttachmentId={deletedAttachmentId ?? null}
+            onPendingAttachmentConsumed={onPendingAttachmentConsumed ?? (() => {})}
+            onDeletedAttachmentConsumed={onDeletedAttachmentConsumed ?? (() => {})}
+          />
 
           {/* Metadata */}
           <div className="pt-2 border-t border-border-subtle">

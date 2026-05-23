@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Loader2, LayoutGrid, Trash2 } from 'lucide-react'
+import { Plus, Loader2, LayoutGrid, Trash2, X, AlertTriangle } from 'lucide-react'
 import { useBoardStore } from '@/stores/boardStore'
 import { CreateBoardModal } from '@/components/board/CreateBoardModal'
 import type { Board } from '@/types'
@@ -15,9 +15,22 @@ function BoardCard({
 }: {
   board: Board
   onOpen: () => void
-  onDelete: () => void
+  onDelete: () => Promise<void>
 }) {
   const [showDelete, setShowDelete] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  const handleDeleteClick = async () => {
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      await onDelete()
+    } catch {
+      setDeleteError('Solo el propietario puede eliminar este tablero')
+      setIsDeleting(false)
+    }
+  }
 
   return (
     <div
@@ -74,26 +87,45 @@ function BoardCard({
           className="absolute inset-0 bg-bg-secondary/95 backdrop-blur-sm flex flex-col items-center justify-center gap-3 p-4"
           onClick={(e) => e.stopPropagation()}
         >
-          <p className="text-sm text-text-primary font-medium text-center">
-            ¿Eliminar &ldquo;{board.name}&rdquo;?
-          </p>
-          <p className="text-xs text-text-secondary text-center">
-            Esta acción no se puede deshacer
-          </p>
-          <div className="flex gap-2 w-full">
-            <button
-              onClick={() => setShowDelete(false)}
-              className="flex-1 py-1.5 rounded-lg text-xs border border-border-subtle text-text-secondary hover:text-text-primary transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={onDelete}
-              className="flex-1 py-1.5 rounded-lg text-xs bg-accent-rose text-white hover:bg-accent-rose/90 transition-colors"
-            >
-              Eliminar
-            </button>
-          </div>
+          {deleteError ? (
+            <>
+              <AlertTriangle className="w-5 h-5 text-accent-rose" />
+              <p className="text-xs text-accent-rose text-center">{deleteError}</p>
+              <button
+                onClick={() => {
+                  setShowDelete(false)
+                  setDeleteError(null)
+                }}
+                className="py-1.5 px-4 rounded-lg text-xs border border-border-subtle text-text-secondary hover:text-text-primary transition-colors"
+              >
+                Cerrar
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-text-primary font-medium text-center">
+                ¿Eliminar &ldquo;{board.name}&rdquo;?
+              </p>
+              <p className="text-xs text-text-secondary text-center">
+                Esta acción no se puede deshacer
+              </p>
+              <div className="flex gap-2 w-full">
+                <button
+                  onClick={() => setShowDelete(false)}
+                  className="flex-1 py-1.5 rounded-lg text-xs border border-border-subtle text-text-secondary hover:text-text-primary transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDeleteClick}
+                  disabled={isDeleting}
+                  className="flex-1 py-1.5 rounded-lg text-xs bg-accent-rose text-white hover:bg-accent-rose/90 transition-colors disabled:opacity-50"
+                >
+                  {isDeleting ? '…' : 'Eliminar'}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -102,15 +134,31 @@ function BoardCard({
 
 export default function BoardsPage() {
   const router = useRouter()
-  const { boards, isLoadingBoards, fetchBoards, createBoard, deleteBoard } = useBoardStore()
+  const { boards, isLoadingBoards, fetchBoards, createBoard, deleteBoard, error, clearError } =
+    useBoardStore()
   const [showCreate, setShowCreate] = useState(false)
 
   useEffect(() => {
     fetchBoards()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const handleDeleteBoard = (id: string) => deleteBoard(id)
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
+      {/* Error banner */}
+      {error && (
+        <div className="mb-6 px-4 py-3 rounded-lg bg-accent-rose/10 border border-accent-rose/20 flex items-center justify-between">
+          <p className="text-sm text-accent-rose">{error}</p>
+          <button
+            onClick={clearError}
+            className="w-6 h-6 rounded flex items-center justify-center text-accent-rose hover:bg-accent-rose/20 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Page header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -169,7 +217,7 @@ export default function BoardsPage() {
               key={board.id}
               board={board}
               onOpen={() => router.push(`/board/${board.id}`)}
-              onDelete={() => deleteBoard(board.id)}
+              onDelete={() => handleDeleteBoard(board.id)}
             />
           ))}
 
