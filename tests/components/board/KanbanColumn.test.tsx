@@ -177,9 +177,23 @@ describe('KanbanColumn — estilos por nombre', () => {
 // Interacciones
 
 describe('KanbanColumn — interacciones', () => {
-  it('llama a onAddTask con el id de la columna al hacer click en +', async () => {
+  it('llama a onAddTask con el id de la columna al hacer click en el botón del encabezado (+)', async () => {
     renderColumn()
-    await userEvent.click(screen.getByTitle('Agregar tarea'))
+    
+    // Encuentra el botón usando el aria-label dinámico generado por la columna ("Por Hacer")
+    const topAddButton = screen.getByRole('button', { name: /agregar tarea en por hacer/i })
+    
+    await userEvent.click(topAddButton)
+    expect(mockOnAddTask).toHaveBeenCalledWith('col1')
+  })
+
+  it('llama a onAddTask con el id de la columna al hacer click en el botón inferior "Nueva tarea"', async () => {
+    renderColumn()
+    
+    // Encuentra el botón inferior a través de su texto accesible
+    const bottomAddButton = screen.getByRole('button', { name: /nueva tarea/i })
+    
+    await userEvent.click(bottomAddButton)
     expect(mockOnAddTask).toHaveBeenCalledWith('col1')
   })
 
