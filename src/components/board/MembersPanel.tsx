@@ -77,6 +77,7 @@ export function MembersPanel({ boardId, members, onClose }: MembersPanelProps) {
               {/* Avatar */}
               <div className="w-8 h-8 rounded-full bg-accent-indigo/20 border border-accent-indigo/30 flex items-center justify-center flex-shrink-0">
                 {m.user?.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={m.user.avatarUrl}
                     alt={m.user.name}

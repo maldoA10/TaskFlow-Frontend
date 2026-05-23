@@ -208,9 +208,15 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
   return (
     <>
       {/* Toolbar: members + filter toggle */}
-      <div className="flex items-center justify-end gap-2 px-6 pt-3">
+      <div
+        className="flex items-center justify-end gap-2 px-6 pt-3"
+        role="toolbar"
+        aria-label="Acciones del tablero"
+      >
         <button
           onClick={() => setShowFilters((v) => !v)}
+          aria-label={showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
+          aria-pressed={showFilters}
           className={clsx(
             'flex items-center gap-1.5 text-xs bg-bg-elevated border px-3 py-1.5 rounded-lg transition-colors',
             showFilters || filterActive
@@ -230,6 +236,7 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
         </button>
         <button
           onClick={() => setShowMembers(true)}
+          aria-label="Ver miembros del tablero"
           className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary bg-bg-elevated hover:bg-bg-elevated/80 border border-border-subtle px-3 py-1.5 rounded-lg transition-colors"
         >
           <Users className="w-3.5 h-3.5" />
@@ -256,7 +263,11 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
         onDragOver={onDragOver}
         onDragEnd={onDragEnd}
       >
-        <div className="flex gap-4 h-full px-6 pb-6 pt-3 overflow-x-auto">
+        <div
+          className="flex gap-4 h-full px-6 pb-6 pt-3 overflow-x-auto snap-x snap-mandatory"
+          role="main"
+          aria-label="Tablero Kanban"
+        >
           {columns.map((col) => (
             <KanbanColumn
               key={col.id}
