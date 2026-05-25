@@ -77,7 +77,7 @@
     "sharp": "^0.34.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5",
-    "webpack": "^5.106.2"
+    "webpack": "^5.107.1"
   },
   "overrides": {
     "serialize-javascript": "^7.0.5"
