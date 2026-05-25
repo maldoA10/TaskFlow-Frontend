@@ -7,7 +7,7 @@ on:
       - develop
 
 permissions:
-  contents: read
+  contents: read 
 
 jobs:
   # JOB 1: Build para el entorno correspondiente
@@ -38,19 +38,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build for ${{ steps.set-env.outputs.environment }}
-        run: |
-          if [[ "${{ steps.set-env.outputs.environment }}" == "production" ]]; then
-            npm run build -- --configuration production
-          else
-            npm run build -- --configuration staging
-          fi
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
         with:
           name: dist-${{ steps.set-env.outputs.environment }}
-          path: dist/
+          path: .next/
           retention-days: 7
 
   # JOB 2: Deploy
@@ -67,36 +64,11 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: dist-${{ needs.build.outputs.environment }}
-          path: dist/
+          path: .next/
 
-      # ── Opción A: Vercel ──────────────────
-      # - name: Deploy to Vercel
-      #   uses: amondnet/vercel-action@v25
-      #   with:
-      #     vercel-token: ${{ secrets.VERCEL_TOKEN }}
-      #     vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-      #     vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-      #     vercel-args: ${{ needs.build.outputs.environment == 'production' && '--prod' || '' }}
-
-      # ── Opción B: Firebase Hosting ────────
-      # - name: Deploy to Firebase
-      #   uses: FirebaseExtended/action-hosting-deploy@v0
-      #   with:
-      #     repoToken: ${{ secrets.GITHUB_TOKEN }}
-      #     firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-      #     channelId: ${{ needs.build.outputs.environment == 'production' && 'live' || 'staging' }}
-
-      # ── Opción C: AWS S3 + CloudFront ─────
-      # - name: Deploy to S3
-      #   run: |
-      #     aws s3 sync dist/ s3://${{ secrets.S3_BUCKET }} --delete
-      #     aws cloudfront create-invalidation --distribution-id ${{ secrets.CF_DISTRIBUTION_ID }} --paths "/*"
-      #   env:
-      #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-      - name: Deploy placeholder
-        run: echo "Configura el hosting en este step."
+      - name: Deploy to Render
+        run: |
+          curl -fsSL -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
 
   # JOB 3: Notificación de resultado
   notify:
