@@ -74,7 +74,7 @@ jobs:
   notify:
     name: Notify Result
     runs-on: ubuntu-latest
-    needs: deploy
+    needs: [build, deploy]
     if: always()
     steps:
       - name: Deployment status
